@@ -165,7 +165,6 @@ router.post('/submit', protect, upload.fields([
     }
 
     // Upload files using the Cloudinary/Local adapter
-    const idCardLocalPath = req.files['idCard'][0].path;
     const selfieLocalPath = req.files['selfie'][0].path;
 
     const idCardUrl = await uploadImage(idCardLocalPath, req);
