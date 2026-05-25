@@ -99,36 +99,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login handler (Retained for legacy/direct backdoors if needed)
-  const login = async (email, name, phone, role) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/auth/supabase-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, name, phone, role }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('agevault_token', data.token);
-        setToken(data.token);
-        setUser(data.user);
-        return { success: true, user: data.user };
-      } else {
-        return { success: false, message: data.message };
-      }
-    } catch (error) {
-      console.error('Login request failed:', error);
-      return { success: false, message: 'Server unreachable. Check if backend is running.' };
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Logout handler
   const logout = () => {
     localStorage.removeItem('agevault_token');
@@ -155,7 +125,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, sendOtp, verifyOtp, login, logout, refreshUser, apiUrl: API_URL }}>
+    <AuthContext.Provider value={{ user, token, loading, sendOtp, verifyOtp, logout, refreshUser, apiUrl: API_URL }}>
       {children}
     </AuthContext.Provider>
   );
