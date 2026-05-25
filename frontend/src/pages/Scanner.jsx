@@ -292,7 +292,7 @@ const Scanner = () => {
                   <span className="text-slate-500 flex items-center gap-1">
                     <Award className="w-3.5 h-3.5" /> Face Match Liveness:
                   </span>
-                  <span className={`font-bold ${scanResult.user.faceMatchConfidence >= 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <span className={`font-bold ${scanResult.user.faceMatchConfidence >= 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {scanResult.user.faceMatchConfidence}%
                   </span>
                 </div>

@@ -175,10 +175,10 @@ router.post('/submit', protect, upload.fields([
     // Determine verification status
     // Auto-verify if:
     // 1. User is older than 18
-    // 2. Face match confidence is 75% or higher
+    // 2. Face match confidence is 40% or higher
     // Otherwise, set status to pending for admin manual review
     let status = 'pending';
-    if (age >= 18 && confidenceScore >= 75) {
+    if (age >= 18 && confidenceScore >= 40) {
       status = 'verified';
     }
 

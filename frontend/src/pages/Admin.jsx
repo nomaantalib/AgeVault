@@ -596,7 +596,7 @@ const Admin = () => {
                   </div>
                   <div className="flex justify-between py-0.5">
                     <span className="text-slate-500">AI face likeness match:</span>
-                    <span className={`font-bold ${selectedUser.faceMatchConfidence >= 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    <span className={`font-bold ${selectedUser.faceMatchConfidence >= 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
                       {selectedUser.faceMatchConfidence}% similarity
                     </span>
                   </div>

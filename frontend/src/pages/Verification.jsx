@@ -830,14 +830,14 @@ const Verification = () => {
                   <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold block mb-1">
                     AI Face-Match Score
                   </span>
-                  <div className={`text-4xl font-extrabold tracking-tight ${faceMatchConfidence >= 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <div className={`text-4xl font-extrabold tracking-tight ${faceMatchConfidence >= 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {faceMatchConfidence}%
                   </div>
                   <div className="mt-2.5 flex items-center justify-center gap-1">
-                    <span className={`w-2.5 h-2.5 rounded-full ${faceMatchConfidence >= 75 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${faceMatchConfidence >= 40 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {faceMatchConfidence >= 75 
-                        ? 'High Confidence Match (Eligible for Auto-Verification)' 
+                      {faceMatchConfidence >= 40 
+                        ? 'Confidence Match (Eligible for Auto-Verification)' 
                         : 'Face mismatch or low resolution. Pending manual admin approval.'}
                     </span>
                   </div>
@@ -885,11 +885,11 @@ const Verification = () => {
                   </div>
                 </div>
 
-                {faceMatchConfidence < 75 && (
+                {faceMatchConfidence < 40 && (
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[10px] rounded-xl flex items-start gap-2 leading-relaxed">
                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                     <span>
-                      Since the match score is below 75%, your request will be queued in the **Pending Admin Review Queue**. Club admins can manually override and verify you shortly.
+                      Since the match score is below 40%, your request will be queued in the **Pending Admin Review Queue**. Club admins can manually override and verify you shortly.
                     </span>
                   </div>
                 )}
