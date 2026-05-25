@@ -164,6 +164,15 @@ router.post('/send-otp', async (req, res) => {
     await user.save();
 
     // Check if Resend API Key is set for real OTP verification
+    if (process.env.USE_SIMULATED_OTP === 'true') {
+      console.log(`[SIMULATED OTP] Verification code for ${email} is ${otp}`);
+      return res.json({
+        success: true,
+        message: `Simulated security verification code generated.`,
+        otp: otp
+      });
+    }
+
     if (!process.env.RESEND_API_KEY) {
       return res.status(500).json({ success: false, message: 'Real OTP transmission failed: RESEND_API_KEY is not configured on the server.' });
     }

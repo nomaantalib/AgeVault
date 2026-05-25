@@ -398,16 +398,26 @@ const verifyAdminOTP = async (req, res, otpCode) => {
   }
   
   if (!otpCode) {
-    // Check if key is configured
-    if (!process.env.RESEND_API_KEY) {
-      return { success: false, status: 500, message: 'Real OTP transmission failed: RESEND_API_KEY is not configured on the server.' };
-    }
-    
-    // Generate and send OTP
+    // Generate and save OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     admin.otp = otp;
     admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
     await admin.save();
+
+    if (process.env.USE_SIMULATED_OTP === 'true') {
+      console.log(`[SIMULATED OTP] Admin verification code is ${otp}`);
+      return {
+        success: false,
+        status: 400,
+        requiresOtp: true,
+        message: `[SIMULATED] Security Verification: Code is ${otp}. Please input it to authorize this action.`
+      };
+    }
+
+    // Check if key is configured
+    if (!process.env.RESEND_API_KEY) {
+      return { success: false, status: 500, message: 'Real OTP transmission failed: RESEND_API_KEY is not configured on the server.' };
+    }
     
     const emailSent = await sendResendOTP(adminEmail, otp);
     if (!emailSent) {
