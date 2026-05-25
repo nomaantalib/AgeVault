@@ -339,6 +339,8 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       message: 'Invalid QR Code: Token has been modified or is expired.'
     });
   }
+});
+
 // @route   POST api/verify/access
 // @desc    Gate staff override to manually grant or revoke user entry/verification status
 // @access  Private (Club or Admin only)
