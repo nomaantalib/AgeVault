@@ -8,7 +8,10 @@ export const API_URL = import.meta.env.VITE_API_URL !== undefined && import.meta
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('agevault_token') || null);
+  const [token, setToken] = useState(() => {
+    const t = localStorage.getItem('agevault_token');
+    return t && t !== 'null' && t !== 'undefined' ? t : null;
+  });
   const [loading, setLoading] = useState(true);
 
   // Fetch current user details on load or token change

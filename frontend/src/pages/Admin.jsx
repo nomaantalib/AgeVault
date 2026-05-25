@@ -190,8 +190,10 @@ const Admin = () => {
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (token) {
+      fetchDashboardData();
+    }
+  }, [token]);
 
   const filteredPendingQueue = selectedClub === 'All Clubs' 
     ? pendingQueue 
@@ -554,7 +556,7 @@ const Admin = () => {
                 {filteredPendingQueue.map((user) => (
                   <div
                     key={user._id}
-                    onClick={() => handleUserSelect(user)}
+                    onClick={() => setSelectedUser(user)}
                     className={`p-3 rounded-xl border text-left cursor-pointer transition ${
                       selectedUser && selectedUser._id === user._id
                         ? 'bg-indigo-600/10 border-indigo-500'
