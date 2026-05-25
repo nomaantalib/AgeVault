@@ -5,115 +5,86 @@ const https = require('https');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 
-// Supabase OTP Helper
-const sendSupabaseOTP = (email) => {
+// Brevo Email Helper
+const sendBrevoOTP = (email, otp) => {
   return new Promise((resolve) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    const apiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@agevault.com';
+    const senderName = process.env.BREVO_SENDER_NAME || 'AgeVault';
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase configuration missing (SUPABASE_URL / SUPABASE_ANON_KEY)');
+    if (!apiKey) {
+      console.error('BREVO_API_KEY is not configured on the server.');
       return resolve(false);
     }
 
     const data = JSON.stringify({
-      email,
-      create_user: true
+      sender: {
+        name: senderName,
+        email: senderEmail
+      },
+      to: [
+        {
+          email: email
+        }
+      ],
+      subject: 'AgeVault Security Verification Code',
+      htmlContent: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #f8fafc; padding: 40px; border-radius: 24px; max-width: 600px; margin: 0 auto; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 16px; margin-bottom: 12px;">
+              <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: 1px;">AgeVault</span>
+            </div>
+            <h2 style="font-size: 20px; font-weight: 700; color: #ffffff; margin: 0;">One-Time Security Code</h2>
+            <p style="font-size: 13px; color: #94a3b8; margin-top: 6px;">Secure Email OTP Authentication</p>
+          </div>
+          
+          <div style="background-color: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; padding: 24px; border-radius: 16px; text-align: center; margin-bottom: 24px;">
+            <p style="font-size: 14px; color: #94a3b8; margin-top: 0; margin-bottom: 16px;">Use the following 6-digit OTP code to log in or register your account. This code is valid for 10 minutes.</p>
+            <div style="font-size: 36px; font-weight: 800; letter-spacing: 6px; color: #6366f1; font-family: monospace; background-color: #020617; display: inline-block; padding: 12px 30px; border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.3); text-shadow: 0 0 10px rgba(99, 102, 241, 0.4); margin-bottom: 12px;">
+              ${otp}
+            </div>
+            <p style="font-size: 11px; color: #64748b; margin: 0;">If you did not request this code, please ignore this email.</p>
+          </div>
+          
+          <div style="text-align: center; border-top: 1px solid #1e293b; padding-top: 20px; font-size: 11px; color: #64748b;">
+            <p style="margin: 0 0 6px 0;">This email was sent dynamically by AgeVault verification network.</p>
+            <p style="margin: 0;">&copy; 2026 AgeVault. All rights reserved.</p>
+          </div>
+        </div>
+      `
     });
 
-    try {
-      const parsedUrl = new URL(supabaseUrl);
-      const options = {
-        hostname: parsedUrl.hostname,
-        path: '/auth/v1/otp',
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(data)
+    const options = {
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(true);
+        } else {
+          console.error(`Brevo Send OTP Error: Status ${res.statusCode}, Body: ${body}`);
+          resolve(false);
         }
-      };
-
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', (chunk) => body += chunk);
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(true);
-          } else {
-            console.error(`Supabase Send OTP Error: Status ${res.statusCode}, Body: ${body}`);
-            resolve(false);
-          }
-        });
       });
-
-      req.on('error', (err) => {
-        console.error('Supabase Send OTP Network Error:', err);
-        resolve(false);
-      });
-
-      req.write(data);
-      req.end();
-    } catch (urlError) {
-      console.error('Invalid SUPABASE_URL:', urlError);
-      resolve(false);
-    }
-  });
-};
-
-const verifySupabaseOTP = (email, token) => {
-  return new Promise((resolve) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase configuration missing (SUPABASE_URL / SUPABASE_ANON_KEY)');
-      return resolve(false);
-    }
-
-    const data = JSON.stringify({
-      email,
-      token,
-      type: 'email'
     });
 
-    try {
-      const parsedUrl = new URL(supabaseUrl);
-      const options = {
-        hostname: parsedUrl.hostname,
-        path: '/auth/v1/verify',
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(data)
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', (chunk) => body += chunk);
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(true);
-          } else {
-            console.error(`Supabase Verify OTP Error: Status ${res.statusCode}, Body: ${body}`);
-            resolve(false);
-          }
-        });
-      });
-
-      req.on('error', (err) => {
-        console.error('Supabase Verify OTP Network Error:', err);
-        resolve(false);
-      });
-
-      req.write(data);
-      req.end();
-    } catch (urlError) {
-      console.error('Invalid SUPABASE_URL:', urlError);
+    req.on('error', (err) => {
+      console.error('Brevo Send OTP Network Error:', err);
       resolve(false);
-    }
+    });
+
+    req.write(data);
+    req.end();
   });
 };
 
@@ -195,13 +166,14 @@ router.post('/send-otp', async (req, res) => {
       }
     }
 
+    // Generate 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
     // Handle simulated OTP flow
     if (process.env.USE_SIMULATED_OTP === 'true') {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      user.otp = otp;
-      user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
       await user.save();
-
       console.log(`[SIMULATED OTP] Verification code for ${email} is ${otp}`);
       return res.json({
         success: true,
@@ -210,18 +182,18 @@ router.post('/send-otp', async (req, res) => {
       });
     }
 
-    // Save user details before triggering external OTP service
+    // Save details to DB
     await user.save();
 
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-      return res.status(500).json({ success: false, message: 'Real OTP transmission failed: Supabase configurations (SUPABASE_URL / SUPABASE_ANON_KEY) are not set on the server.' });
+    if (!process.env.BREVO_API_KEY) {
+      return res.status(500).json({ success: false, message: 'Real OTP transmission failed: BREVO_API_KEY is not configured on the server.' });
     }
 
-    // Send OTP using Supabase GoTrue Auth
-    const emailSent = await sendSupabaseOTP(email);
+    // Send email using Brevo
+    const emailSent = await sendBrevoOTP(email, otp);
 
     if (!emailSent) {
-      return res.status(500).json({ success: false, message: 'Failed to send security verification code. Please check your Supabase email/OTP settings.' });
+      return res.status(500).json({ success: false, message: 'Failed to send security verification code. Please check your Brevo API configurations.' });
     }
 
     res.json({
@@ -257,28 +229,20 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (process.env.USE_SIMULATED_OTP === 'true') {
-      // Check if OTP matches locally
-      if (!user.otp || user.otp !== otp) {
-        return res.status(400).json({ success: false, message: 'Invalid verification code' });
-      }
-
-      // Check expiration
-      if (user.otpExpires && new Date() > user.otpExpires) {
-        return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one.' });
-      }
-
-      // Clear OTP fields after successful verification
-      user.otp = '';
-      user.otpExpires = undefined;
-      await user.save();
-    } else {
-      // Verify OTP via Supabase
-      const verified = await verifySupabaseOTP(email, otp);
-      if (!verified) {
-        return res.status(400).json({ success: false, message: 'Invalid or expired verification code.' });
-      }
+    // Check if OTP matches locally (Brevo sends code, server verifies via MongoDB)
+    if (!user.otp || user.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code' });
     }
+
+    // Check expiration
+    if (user.otpExpires && new Date() > user.otpExpires) {
+      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new one.' });
+    }
+
+    // Clear OTP fields after successful verification
+    user.otp = '';
+    user.otpExpires = undefined;
+    await user.save();
 
     // Mark user status as verified if pending standard user
     if (user.role === 'user' && user.status === 'pending') {

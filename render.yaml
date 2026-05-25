@@ -13,7 +13,10 @@ services:
         generateValue: true
       - key: USE_SIMULATED_OTP
         value: "false"
-      - key: SUPABASE_URL
+      - key: BREVO_API_KEY
         sync: false
-      - key: SUPABASE_ANON_KEY
+      - key: BREVO_SENDER_EMAIL
         sync: false
+      - key: BREVO_SENDER_NAME
+        sync: false
+

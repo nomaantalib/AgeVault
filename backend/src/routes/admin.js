@@ -321,115 +321,81 @@ router.delete('/event/:id', protect, adminOnly, async (req, res) => {
 // HTTPS library for Resend API OTP calls
 const https = require('https');
 
-// Helper to send Admin security verification code via Supabase
-const sendSupabaseOTP = (email) => {
+// Helper to send Admin security verification code via Brevo
+const sendBrevoOTP = (email, otp) => {
   return new Promise((resolve) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    const apiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@agevault.com';
+    const senderName = process.env.BREVO_SENDER_NAME || 'AgeVault';
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase configuration missing (SUPABASE_URL / SUPABASE_ANON_KEY)');
+    if (!apiKey) {
+      console.error('BREVO_API_KEY is not configured on the server.');
       return resolve(false);
     }
 
     const data = JSON.stringify({
-      email,
-      create_user: true
+      sender: {
+        name: senderName,
+        email: senderEmail
+      },
+      to: [
+        {
+          email: email
+        }
+      ],
+      subject: 'AgeVault Admin Action Authorization Code',
+      htmlContent: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #f8fafc; padding: 40px; border-radius: 24px; max-width: 600px; margin: 0 auto; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 16px; margin-bottom: 12px;">
+              <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: 1px;">AgeVault</span>
+            </div>
+            <h2 style="font-size: 20px; font-weight: 700; color: #ffffff; margin: 0;">Destructive Admin Action Request</h2>
+            <p style="font-size: 13px; color: #94a3b8; margin-top: 6px;">Security Authorization Required</p>
+          </div>
+          
+          <div style="background-color: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; padding: 24px; border-radius: 16px; text-align: center; margin-bottom: 24px;">
+            <p style="font-size: 14px; color: #94a3b8; margin-top: 0; margin-bottom: 16px;">An Admin action was requested to wipe club data or modify dynamic venue records. Enter this 6-digit code to authorize this action.</p>
+            <div style="font-size: 36px; font-weight: 800; letter-spacing: 6px; color: #f43f5e; font-family: monospace; background-color: #020617; display: inline-block; padding: 12px 30px; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.3); text-shadow: 0 0 10px rgba(244, 63, 94, 0.4); margin-bottom: 12px;">
+              ${otp}
+            </div>
+            <p style="font-size: 11px; color: #64748b; margin: 0;">If you did not initiate this request, please ignore this email.</p>
+          </div>
+        </div>
+      `
     });
 
-    try {
-      const parsedUrl = new URL(supabaseUrl);
-      const options = {
-        hostname: parsedUrl.hostname,
-        path: '/auth/v1/otp',
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(data)
+    const options = {
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(true);
+        } else {
+          console.error(`Brevo Send OTP Error: Status ${res.statusCode}, Body: ${body}`);
+          resolve(false);
         }
-      };
-
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', (chunk) => body += chunk);
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(true);
-          } else {
-            console.error(`Supabase Send OTP Error: Status ${res.statusCode}, Body: ${body}`);
-            resolve(false);
-          }
-        });
       });
-
-      req.on('error', (err) => {
-        console.error('Supabase Send OTP Network Error:', err);
-        resolve(false);
-      });
-
-      req.write(data);
-      req.end();
-    } catch (urlError) {
-      console.error('Invalid SUPABASE_URL:', urlError);
-      resolve(false);
-    }
-  });
-};
-
-const verifySupabaseOTP = (email, token) => {
-  return new Promise((resolve) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Supabase configuration missing (SUPABASE_URL / SUPABASE_ANON_KEY)');
-      return resolve(false);
-    }
-
-    const data = JSON.stringify({
-      email,
-      token,
-      type: 'email'
     });
 
-    try {
-      const parsedUrl = new URL(supabaseUrl);
-      const options = {
-        hostname: parsedUrl.hostname,
-        path: '/auth/v1/verify',
-        method: 'POST',
-        headers: {
-          'apikey': supabaseKey,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(data)
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let body = '';
-        res.on('data', (chunk) => body += chunk);
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(true);
-          } else {
-            console.error(`Supabase Verify OTP Error: Status ${res.statusCode}, Body: ${body}`);
-            resolve(false);
-          }
-        });
-      });
-
-      req.on('error', (err) => {
-        console.error('Supabase Verify OTP Network Error:', err);
-        resolve(false);
-      });
-
-      req.write(data);
-      req.end();
-    } catch (urlError) {
-      console.error('Invalid SUPABASE_URL:', urlError);
+    req.on('error', (err) => {
+      console.error('Brevo Send OTP Network Error:', err);
       resolve(false);
-    }
+    });
+
+    req.write(data);
+    req.end();
   });
 };
 
@@ -442,12 +408,13 @@ const verifyAdminOTP = async (req, res, otpCode) => {
   }
   
   if (!otpCode) {
-    if (process.env.USE_SIMULATED_OTP === 'true') {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      admin.otp = otp;
-      admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-      await admin.save();
+    // Generate and save OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    admin.otp = otp;
+    admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    await admin.save();
 
+    if (process.env.USE_SIMULATED_OTP === 'true') {
       console.log(`[SIMULATED OTP] Admin verification code is ${otp}`);
       return {
         success: false,
@@ -458,38 +425,31 @@ const verifyAdminOTP = async (req, res, otpCode) => {
     }
 
     // Check if key is configured
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-      return { success: false, status: 500, message: 'Real OTP transmission failed: Supabase configurations (SUPABASE_URL / SUPABASE_ANON_KEY) are not set on the server.' };
+    if (!process.env.BREVO_API_KEY) {
+      return { success: false, status: 500, message: 'Real OTP transmission failed: BREVO_API_KEY is not configured on the server.' };
     }
     
-    const emailSent = await sendSupabaseOTP(adminEmail);
+    const emailSent = await sendBrevoOTP(adminEmail, otp);
     if (!emailSent) {
-      return { success: false, status: 500, message: 'Failed to send security verification code. Please check your Supabase configurations.' };
+      return { success: false, status: 500, message: 'Failed to send security verification code. Please check your Brevo configurations.' };
     }
     
     return { success: false, status: 400, requiresOtp: true, message: `Security Verification: A secure 6-digit authorization code has been sent to your administrator email (${adminEmail}). Please input it to authorize this action.` };
   }
   
-  // Verify OTP
-  if (process.env.USE_SIMULATED_OTP === 'true') {
-    if (admin.otp !== otpCode) {
-      return { success: false, status: 400, message: 'Security Verification Failed: Invalid authorization code.' };
-    }
-    
-    if (admin.otpExpires && new Date() > admin.otpExpires) {
-      return { success: false, status: 400, message: 'Security Verification Failed: Code has expired. Please try again.' };
-    }
-    
-    // Clear OTP
-    admin.otp = '';
-    admin.otpExpires = undefined;
-    await admin.save();
-  } else {
-    const verified = await verifySupabaseOTP(adminEmail, otpCode);
-    if (!verified) {
-      return { success: false, status: 400, message: 'Security Verification Failed: Invalid or expired authorization code.' };
-    }
+  // Verify OTP (Brevo sends, server verifies against MongoDB)
+  if (admin.otp !== otpCode) {
+    return { success: false, status: 400, message: 'Security Verification Failed: Invalid authorization code.' };
   }
+  
+  if (admin.otpExpires && new Date() > admin.otpExpires) {
+    return { success: false, status: 400, message: 'Security Verification Failed: Code has expired. Please try again.' };
+  }
+  
+  // Clear OTP
+  admin.otp = '';
+  admin.otpExpires = undefined;
+  await admin.save();
   
   return { success: true };
 };
