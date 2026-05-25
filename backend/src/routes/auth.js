@@ -178,6 +178,21 @@ router.post('/supabase-login', async (req, res) => {
     // Check if user exists by email or phone
     let user = await User.findOne({ $or: [{ email }, { phone: phone || '___none___' }] });
 
+    // 1. Enforce single-person Admin: Only admin@agevault.com or +919999999999 can log in as Admin
+    if (role === 'admin' && email !== 'admin@agevault.com' && phone !== '+919999999999') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Only the authorized administrator account can log in as Admin.' });
+    }
+
+    // 2. Prevent Staff self-registration: Staff accounts must already exist (manually added by Admin)
+    if (role === 'club' && !user && email !== 'staff@agevault.com' && phone !== '+918888888888') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Staff accounts must be manually created by the Administrator.' });
+    }
+
+    // 3. Prevent Staff/Admin from logging in as standard members (users)
+    if (user && (user.role === 'club' || user.role === 'admin') && role === 'user') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Staff/Admin accounts cannot log in as standard members.' });
+    }
+
     let finalRole = role || 'user';
     // Backdoors for easy testing/demo
     if (email === 'admin@agevault.com' || phone === '+919999999999') {
@@ -266,6 +281,21 @@ router.post('/send-otp', async (req, res) => {
       ] 
     });
 
+    // 1. Enforce single-person Admin: Only admin@agevault.com or +919999999999 can log in as Admin
+    if (role === 'admin' && email !== 'admin@agevault.com' && formattedPhone !== '+919999999999') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Only the authorized administrator account can log in as Admin.' });
+    }
+
+    // 2. Prevent Staff self-registration: Staff accounts must already exist (manually added by Admin)
+    if (role === 'club' && !user && email !== 'staff@agevault.com' && formattedPhone !== '+918888888888') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Staff accounts must be manually created by the Administrator.' });
+    }
+
+    // 3. Prevent Staff/Admin from logging in as standard members (users)
+    if (user && (user.role === 'club' || user.role === 'admin') && role === 'user') {
+      return res.status(403).json({ success: false, message: 'Access Denied: Staff/Admin accounts cannot log in as standard members.' });
+    }
+
     if (authMode === 'login' && !user) {
       return res.status(404).json({ success: false, message: 'This email is not registered. Please switch to register mode.' });
     }
@@ -313,16 +343,21 @@ router.post('/send-otp', async (req, res) => {
 
     await user.save();
 
+    // Check if Resend API Key is set for real OTP verification
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(500).json({ success: false, message: 'Real OTP transmission failed: RESEND_API_KEY is not configured on the server.' });
+    }
+
     // Send email using Resend
     const emailSent = await sendResendOTP(email, otp);
 
+    if (!emailSent) {
+      return res.status(500).json({ success: false, message: 'Failed to send security verification code. Please check your Resend API configurations.' });
+    }
+
     res.json({
       success: true,
-      message: emailSent 
-        ? `A 6-digit verification code has been sent to ${email}.`
-        : `A simulated security verification code was generated (Demo Mode).`,
-      // For testing / demo backup we can log the OTP to the console, or return it if Resend is missing
-      otp: !process.env.RESEND_API_KEY ? otp : undefined
+      message: `A secure 6-digit verification code has been sent to ${email}.`
     });
   } catch (error) {
     console.error('Send OTP error:', error);
