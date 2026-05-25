@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   // Login handler
-  const login = async (firebaseToken) => {
+  const login = async (firebaseToken, email) => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/verify-phone`, {
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: firebaseToken }),
+        body: JSON.stringify({ token: firebaseToken, email }),
       });
 
       const data = await response.json();

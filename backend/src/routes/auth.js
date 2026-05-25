@@ -9,7 +9,7 @@ const { protect } = require('../middleware/auth');
 // @desc    Verify phone token from Firebase and sign JWT
 // @access  Public
 router.post('/verify-phone', async (req, res) => {
-  const { token } = req.body;
+  const { token, email } = req.body;
 
   if (!token) {
     return res.status(400).json({ success: false, message: 'Token is required' });
@@ -37,15 +37,22 @@ router.post('/verify-phone', async (req, res) => {
     if (!user) {
       user = new User({
         phone: phoneNumber,
+        email: email || '',
         role: role,
         status: role === 'user' ? 'pending' : 'verified', // admins/club don't need manual verification
       });
       await user.save();
-    } else if (user.role !== role && (phoneNumber === '+919999999999' || phoneNumber === '+918888888888')) {
-      // Keep demo accounts roles updated
-      user.role = role;
-      user.status = 'verified';
-      await user.save();
+    } else {
+      if (email && !user.email) {
+        user.email = email;
+        await user.save();
+      }
+      if (user.role !== role && (phoneNumber === '+919999999999' || phoneNumber === '+918888888888')) {
+        // Keep demo accounts roles updated
+        user.role = role;
+        user.status = 'verified';
+        await user.save();
+      }
     }
 
     // Sign Custom JWT
@@ -62,6 +69,7 @@ router.post('/verify-phone', async (req, res) => {
       user: {
         id: user._id,
         phone: user.phone,
+        email: user.email,
         name: user.name,
         role: user.role,
         status: user.status,

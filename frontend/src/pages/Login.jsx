@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { auth, isFirebaseConfigured } from '../utils/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
-import { Shield, Phone, Key, Smartphone, Info, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Shield, Phone, Key, Smartphone, Info, ToggleLeft, ToggleRight, Mail } from 'lucide-react';
 
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -134,7 +135,7 @@ const Login = () => {
       setTimeout(async () => {
         if (otpCode === '123456' || formattedPhone === '+919999999999' || formattedPhone === '+918888888888') {
           const simulatedToken = `simulated-token-${formattedPhone}`;
-          const res = await login(simulatedToken);
+          const res = await login(simulatedToken, email);
           setLoading(false);
           if (res.success) {
             navigate('/');
@@ -151,7 +152,7 @@ const Login = () => {
       try {
         const result = await confirmationResult.confirm(otpCode);
         const idToken = await result.user.getIdToken();
-        const res = await login(idToken);
+        const res = await login(idToken, email);
         setLoading(false);
         if (res.success) {
           navigate('/');
@@ -219,6 +220,25 @@ const Login = () => {
 
         {!isOtpSent ? (
           <form onSubmit={handlePhoneSubmit} className="space-y-6">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Email Address (Optional)
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <input
+                  type="email"
+                  placeholder="Enter email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  className="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input text-white text-base tracking-wide"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                 Mobile Phone Number
