@@ -218,7 +218,7 @@ const Login = () => {
               <Shield className="w-7 h-7 text-white" />
             </div>
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans text-center">
-              <Typewriter text="AgeVault" speed={85} className="blink-cursor" />
+              AgeVault
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-450 mt-1 text-center font-semibold">
               Secure Email OTP Verification System
