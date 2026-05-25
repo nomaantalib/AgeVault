@@ -153,8 +153,10 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
         user: {
           name: user.name,
           age: user.age,
+          dob: user.dob,
           phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'), // Mask phone
           selfieUrl: user.selfieUrl,
+          idCardUrl: user.idCardUrl,
           faceMatchConfidence: user.faceMatchConfidence
         }
       });
@@ -168,8 +170,10 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       user: {
         name: user.name,
         age: user.age,
+        dob: user.dob,
         phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'),
         selfieUrl: user.selfieUrl,
+        idCardUrl: user.idCardUrl,
         faceMatchConfidence: user.faceMatchConfidence,
         verifiedAt: user.createdAt
       }

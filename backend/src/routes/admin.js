@@ -99,4 +99,133 @@ router.post('/action', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   GET api/admin/users
+// @desc    Get all users for CRUD
+// @access  Private (Admin only)
+router.get('/users', protect, adminOnly, async (req, res) => {
+  try {
+    const users = await User.find({}).sort({ createdAt: -1 });
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   POST api/admin/users
+// @desc    Create a user manually
+// @access  Private (Admin only)
+router.post('/users', protect, adminOnly, async (req, res) => {
+  const { phone, name, email, role, status, dob, age } = req.body;
+  if (!phone) {
+    return res.status(400).json({ success: false, message: 'Phone number is required' });
+  }
+  try {
+    const existing = await User.findOne({ phone });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'User with this phone number already exists' });
+    }
+    const newUser = new User({
+      phone,
+      name: name || '',
+      email: email || '',
+      role: role || 'user',
+      status: status || 'pending',
+      dob: dob ? new Date(dob) : undefined,
+      age: age || undefined,
+    });
+    // Generate QR token if verified
+    const jwtSecret = process.env.JWT_SECRET;
+    const qrPayload = {
+      uid: newUser._id,
+      name: newUser.name,
+      verified: newUser.status === 'verified',
+      age: newUser.age || 0,
+      timestamp: Math.floor(Date.now() / 1000)
+    };
+    newUser.qrToken = jwt.sign(qrPayload, jwtSecret);
+    await newUser.save();
+    res.json({ success: true, user: newUser });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   PUT api/admin/users/:id
+// @desc    Update a user manually
+// @access  Private (Admin only)
+router.put('/users/:id', protect, adminOnly, async (req, res) => {
+  const { phone, name, email, role, status, dob, age } = req.body;
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    user.phone = phone || user.phone;
+    user.name = name !== undefined ? name : user.name;
+    user.email = email !== undefined ? email : user.email;
+    user.role = role || user.role;
+    user.status = status || user.status;
+    if (dob) {
+      user.dob = new Date(dob);
+    }
+    if (age !== undefined) {
+      user.age = age;
+    }
+    // Regenerate QR token
+    const jwtSecret = process.env.JWT_SECRET;
+    const qrPayload = {
+      uid: user._id,
+      name: user.name,
+      verified: user.status === 'verified',
+      age: user.age || 0,
+      timestamp: Math.floor(Date.now() / 1000)
+    };
+    user.qrToken = jwt.sign(qrPayload, jwtSecret);
+    await user.save();
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   DELETE api/admin/users/:id
+// @desc    Delete a single user manually
+// @access  Private (Admin only)
+router.delete('/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   GET api/admin/export
+// @desc    Export user data for CSV
+// @access  Private (Admin only)
+router.get('/export', protect, adminOnly, async (req, res) => {
+  try {
+    const users = await User.find({ role: 'user' }).select('phone name email dob age status faceMatchConfidence createdAt');
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   DELETE api/admin/clear-history
+// @desc    Clear all user records (keeps admins and club staff)
+// @access  Private (Admin only)
+router.delete('/clear-history', protect, adminOnly, async (req, res) => {
+  try {
+    // Delete only standard users (protect admins and clubs from being cleared!)
+    await User.deleteMany({ role: 'user' });
+    res.json({ success: true, message: 'All user verification history has been cleared successfully.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;

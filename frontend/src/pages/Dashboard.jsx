@@ -76,23 +76,39 @@ const Dashboard = () => {
               <div className="absolute top-4 left-4 right-4 h-0.5 bg-indigo-500 shadow-[0_0_10px_2px_rgba(99,102,241,0.5)] animate-pulse pointer-events-none"></div>
             </div>
 
+            {/* User Selfie Badge */}
+            {user.selfieUrl && (
+              <div className="mb-4">
+                <img
+                  src={user.selfieUrl}
+                  alt="Verified Profile Avatar"
+                  className="w-20 h-20 object-cover rounded-2xl border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/10"
+                />
+              </div>
+            )}
+
             {/* User Details */}
-            <div className="w-full text-center space-y-1 mb-6">
+            <div className="w-full text-center space-y-1 mb-5">
               <h2 className="text-xl font-bold text-white tracking-wide">{user.name}</h2>
               <p className="text-xs text-slate-400 font-mono">
                 {user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1 ***** $3')}
               </p>
+              {user.email && <p className="text-[10px] text-slate-500">{user.email}</p>}
             </div>
 
             {/* Quick Details Grid */}
-            <div className="w-full grid grid-cols-2 gap-3.5 bg-slate-950/40 rounded-2xl p-4 border border-slate-800/80 mb-6 text-xs text-slate-300">
-              <div className="flex flex-col gap-1 border-r border-slate-800/60 pr-2">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Extracted Age</span>
-                <span className="text-white font-extrabold text-sm">{user.age ? `${user.age} Years` : 'N/A'}</span>
+            <div className="w-full grid grid-cols-3 gap-2.5 bg-slate-950/40 rounded-2xl p-4 border border-slate-800/80 mb-6 text-xs text-slate-300">
+              <div className="flex flex-col gap-1 border-r border-slate-800/60 pr-1.5 text-center">
+                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Extracted Age</span>
+                <span className="text-white font-extrabold text-sm">{user.age ? `${user.age} Yrs` : 'N/A'}</span>
               </div>
-              <div className="flex flex-col gap-1 pl-2">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Date of Birth</span>
-                <span className="text-white font-semibold font-mono">{formattedDate}</span>
+              <div className="flex flex-col gap-1 border-r border-slate-800/60 px-1.5 text-center">
+                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Date of Birth</span>
+                <span className="text-white font-semibold font-mono text-[10px]">{formattedDate}</span>
+              </div>
+              <div className="flex flex-col gap-1 pl-1.5 text-center">
+                <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Face Match Score</span>
+                <span className="text-emerald-400 font-extrabold text-sm">{user.faceMatchConfidence || 0}%</span>
               </div>
             </div>
 

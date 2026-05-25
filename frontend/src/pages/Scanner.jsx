@@ -220,25 +220,38 @@ const Scanner = () => {
               {/* User Bio Details Panel */}
               <div className="bg-slate-950/40 border border-slate-850 rounded-2xl p-4 text-left text-xs text-slate-300 space-y-3">
                 {scanResult.user.selfieUrl && (
-                  <div className="flex justify-center mb-4 pb-4 border-b border-slate-905/60">
-                    <div className="relative">
-                      <img
-                        src={scanResult.user.selfieUrl}
-                        alt="Scanned User Selfie"
-                        className={`w-24 h-24 object-cover rounded-2xl border-2 shadow-md ${
-                          scanResult.verified 
-                            ? 'border-emerald-500/50 shadow-emerald-500/10' 
-                            : 'border-rose-500/50 shadow-rose-500/10'
-                        }`}
-                      />
-                      <div className={`absolute -bottom-1.5 -right-1.5 text-white rounded-full p-0.5 border border-slate-950 ${
-                        scanResult.verified ? 'bg-emerald-500' : 'bg-rose-500'
-                      }`}>
-                        {scanResult.verified ? (
-                          <Check className="w-3.5 h-3.5" />
-                        ) : (
-                          <X className="w-3.5 h-3.5" />
-                        )}
+                  <div className="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-slate-900/60">
+                    <div className="text-center space-y-1">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">ID Card Photo</span>
+                      <div className="relative">
+                        <img
+                          src={scanResult.user.idCardUrl}
+                          alt="Government ID"
+                          className="w-full h-24 object-contain rounded-xl border border-slate-800 bg-slate-950/60 p-0.5"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-center space-y-1">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">Webcam Selfie</span>
+                      <div className="relative">
+                        <img
+                          src={scanResult.user.selfieUrl}
+                          alt="Live Selfie"
+                          className={`w-full h-24 object-cover rounded-xl border ${
+                            scanResult.verified 
+                              ? 'border-emerald-500/40' 
+                              : 'border-rose-500/40'
+                          }`}
+                        />
+                        <div className={`absolute -bottom-1.5 -right-1.5 text-white rounded-full p-0.5 border border-slate-950 ${
+                          scanResult.verified ? 'bg-emerald-500' : 'bg-rose-500'
+                        }`}>
+                          {scanResult.verified ? (
+                            <Check className="w-2.5 h-2.5" />
+                          ) : (
+                            <X className="w-2.5 h-2.5" />
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -249,6 +262,14 @@ const Scanner = () => {
                     <User className="w-3.5 h-3.5" /> Name:
                   </span>
                   <span className="text-white font-semibold">{scanResult.user.name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-slate-900">
+                  <span className="text-slate-500 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" /> Date of Birth:
+                  </span>
+                  <span className="text-white font-mono">
+                    {scanResult.user.dob ? new Date(scanResult.user.dob).toLocaleDateString() : 'N/A'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-900">
                   <span className="text-slate-500 flex items-center gap-1">
