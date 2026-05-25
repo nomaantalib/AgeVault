@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Event = require('../models/Event');
 const upload = require('../middleware/upload');
 const { uploadImage } = require('../config/cloudinary');
 const { protect, clubOrAdmin } = require('../middleware/auth');
@@ -39,6 +40,10 @@ router.post('/submit', protect, upload.fields([
 
     const age = calculateAge(dob);
 
+    if (age < 18) {
+      return res.status(400).json({ success: false, message: 'Access Denied: You must be 18 years or older to register.' });
+    }
+
     // Upload files using the Cloudinary/Local adapter
     const idCardLocalPath = req.files['idCard'][0].path;
     const selfieLocalPath = req.files['selfie'][0].path;
@@ -71,6 +76,7 @@ router.post('/submit', protect, upload.fields([
     user.selfieUrl = selfieUrl;
     user.faceMatchConfidence = confidenceScore;
     user.rejectionReason = ''; // Clear previous reasons
+    user.qrScanned = false; // Reset scan status on new submission
 
     // Generate Encrypted / Signed JWT for QR verification
     const jwtSecret = process.env.JWT_SECRET;
@@ -82,7 +88,7 @@ router.post('/submit', protect, upload.fields([
       timestamp: Math.floor(Date.now() / 1000)
     };
 
-    const qrToken = jwt.sign(qrPayload, jwtSecret);
+    const qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
     user.qrToken = qrToken;
 
     await user.save();
@@ -120,13 +126,26 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
   }
 
   try {
+    // 1. Fetch latest event details to check if the event timing has passed
+    const event = await Event.findOne().sort({ createdAt: -1 });
+    if (event) {
+      const eventTime = new Date(event.dateTime).getTime();
+      const currentTime = Date.now();
+      if (currentTime > eventTime) {
+        return res.status(400).json({
+          success: false,
+          message: `Access Denied: The event (${event.title}) date and time has passed. This ticket is expired.`
+        });
+      }
+    }
+
     const jwtSecret = process.env.JWT_SECRET;
     // Verify JWT
     const decoded = jwt.verify(qrToken, jwtSecret);
 
-    // Replay attack prevention: Ensure QR code was generated within the last 15 minutes
+    // Replay attack prevention: Ensure QR code was generated within the last 72 hours
     const currentTimestamp = Math.floor(Date.now() / 1000);
-    const maxAge = 15 * 60; // 15 minutes
+    const maxAge = 72 * 60 * 60; // 72 hours
     if (decoded.timestamp && (currentTimestamp - decoded.timestamp) > maxAge) {
       return res.status(400).json({
         success: false,
@@ -141,6 +160,14 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Invalid QR Code: User does not exist.'
+      });
+    }
+
+    // Enforce One-Time Use to prevent ticket sharing / duplication
+    if (user.qrScanned) {
+      return res.status(400).json({
+        success: false,
+        message: `Access Denied: This QR pass has already been scanned/used on ${new Date(user.qrScannedAt).toLocaleTimeString()}. Double entry is blocked.`
       });
     }
 
@@ -162,11 +189,17 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       });
     }
 
+    // Successfully verified and scanned! Mark QR as scanned/used.
+    user.qrScanned = true;
+    user.qrScannedAt = new Date();
+    await user.save();
+
     res.json({
       success: true,
       verified: true,
       status: user.status,
       message: 'Access Granted: User is verified.',
+      eventTitle: event ? event.title : 'General Admission',
       user: {
         name: user.name,
         age: user.age,
@@ -175,7 +208,7 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
         selfieUrl: user.selfieUrl,
         idCardUrl: user.idCardUrl,
         faceMatchConfidence: user.faceMatchConfidence,
-        verifiedAt: user.createdAt
+        verifiedAt: user.qrScannedAt
       }
     });
   } catch (error) {

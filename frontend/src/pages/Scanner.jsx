@@ -206,6 +206,9 @@ const Scanner = () => {
                   </div>
                   <h3 className="text-2xl font-extrabold text-emerald-400 tracking-wide">ACCESS GRANTED</h3>
                   <p className="text-xs text-slate-400 mt-1">Age Verification Confirmed</p>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider mt-2.5">
+                    Event: {scanResult.eventTitle || 'General Admission'}
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">

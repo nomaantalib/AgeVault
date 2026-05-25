@@ -9,7 +9,7 @@ import {
 const Admin = () => {
   const { token, apiUrl } = useAuth();
   
-  // Tabs: 'audits', 'users', 'database'
+  // Tabs: 'audits', 'users', 'event', 'database'
   const [activeTab, setActiveTab] = useState('audits');
   
   // Dashboard stats
@@ -27,6 +27,16 @@ const Admin = () => {
   
   // Safeguards for Database Deletion
   const [hasExported, setHasExported] = useState(false);
+
+  // Event scheduling states
+  const [activeEvent, setActiveEvent] = useState(null);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDateTime, setEventDateTime] = useState('');
+  const [eventVenue, setEventVenue] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventLoading, setEventLoading] = useState(false);
+  const [eventError, setEventError] = useState('');
+  const [eventSuccess, setEventSuccess] = useState('');
   
   // CRUD states
   const [showUserModal, setShowUserModal] = useState(false);
@@ -73,9 +83,62 @@ const Admin = () => {
       if (usersData.success) {
         setAllUsers(usersData.users);
       }
+
+      // 4. Fetch Active Event details
+      const eventRes = await fetch(`${apiUrl}/api/admin/event`);
+      const eventData = await eventRes.json();
+      if (eventData.success && eventData.event) {
+        setActiveEvent(eventData.event);
+        setEventTitle(eventData.event.title);
+        setEventVenue(eventData.event.venue);
+        setEventDescription(eventData.event.description || '');
+        
+        // Format date to local string suitable for datetime-local input
+        const dt = new Date(eventData.event.dateTime);
+        const formattedDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        setEventDateTime(formattedDt);
+      }
     } catch (err) {
       console.error('Failed to fetch admin dashboard:', err);
       setGeneralError('Failed to load dashboard data. Verify if backend is reachable.');
+    }
+  };
+
+  const handleScheduleEvent = async (e) => {
+    e.preventDefault();
+    setEventLoading(true);
+    setEventError('');
+    setEventSuccess('');
+
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/event`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: eventTitle,
+          dateTime: eventDateTime,
+          venue: eventVenue,
+          description: eventDescription
+        })
+      });
+
+      const data = await response.json();
+      setEventLoading(false);
+
+      if (data.success) {
+        setEventSuccess(data.message || 'Event scheduled successfully!');
+        setActiveEvent(data.event);
+        fetchDashboardData();
+      } else {
+        setEventError(data.message || 'Failed to schedule event.');
+      }
+    } catch (err) {
+      console.error('Error scheduling event:', err);
+      setEventError('Network error. Failed to reach verification server.');
+      setEventLoading(false);
     }
   };
 
@@ -317,6 +380,12 @@ const Admin = () => {
             className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition duration-200 ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
           >
             User CRUD
+          </button>
+          <button
+            onClick={() => setActiveTab('event')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition duration-200 ${activeTab === 'event' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+          >
+            Schedule Event
           </button>
           <button
             onClick={() => setActiveTab('database')}
@@ -652,7 +721,145 @@ const Admin = () => {
         </div>
       )}
 
-      {/* TAB 3: DATABASE OPERATIONS */}
+      {/* TAB 3: SCHEDULE EVENT */}
+      {activeTab === 'event' && (
+        <div className="grid md:grid-cols-2 gap-6 items-start animate-fade-in">
+          {/* Scheduling Form */}
+          <div className="glass-panel rounded-3xl p-6 border-slate-800/80 space-y-6">
+            <div className="border-b border-slate-800 pb-3 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Host/Schedule Club Event</h2>
+            </div>
+
+            {eventError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl">
+                {eventError}
+              </div>
+            )}
+
+            {eventSuccess && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl">
+                {eventSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleScheduleEvent} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Event Title / Headline
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Saturday Retro Glow Night"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  disabled={eventLoading}
+                  className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={eventDateTime}
+                    onChange={(e) => setEventDateTime(e.target.value)}
+                    disabled={eventLoading}
+                    className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Venue / Club Gate
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. VIP Main Entrance"
+                    value={eventVenue}
+                    onChange={(e) => setEventVenue(e.target.value)}
+                    disabled={eventLoading}
+                    className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Event Description & Details
+                </label>
+                <textarea
+                  placeholder="e.g. Doors open at 9 PM. Age limit 18+. Pre-register here to get your pass scanned."
+                  value={eventDescription}
+                  onChange={(e) => setEventDescription(e.target.value)}
+                  disabled={eventLoading}
+                  rows={4}
+                  className="w-full p-3 text-xs rounded-xl glass-input text-white focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={eventLoading}
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-850 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition duration-200 flex items-center justify-center gap-1.5 shadow"
+              >
+                {eventLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Publishing Event Details...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="w-4 h-4" />
+                    Update/Publish Event Schedule
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          {/* Active Schedule Overview */}
+          <div className="glass-panel rounded-3xl p-6 border-slate-800/80 space-y-4">
+            <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Current Live Event Details</h2>
+            {activeEvent ? (
+              <div className="bg-slate-950/40 border border-slate-850 rounded-2xl p-5 space-y-4">
+                <div className="border-b border-slate-900 pb-3">
+                  <span className="text-[10px] text-indigo-400 uppercase tracking-wider font-extrabold block">Title</span>
+                  <span className="text-white font-extrabold text-base block mt-0.5">{activeEvent.title}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-900 pb-3">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Date & Time</span>
+                    <span className="text-white font-semibold font-mono text-xs block mt-0.5">
+                      {new Date(activeEvent.dateTime).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Venue</span>
+                    <span className="text-white font-semibold text-xs block mt-0.5">{activeEvent.venue}</span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Description</span>
+                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">{activeEvent.description || 'No description provided.'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-16 text-slate-500 text-xs italic">
+                No active event scheduled. Users will see standby mode on registration screen.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: DATABASE OPERATIONS */}
       {activeTab === 'database' && (
         <div className="grid md:grid-cols-2 gap-6 items-start">
           

@@ -8,14 +8,31 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser, apiUrl } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [event, setEvent] = useState(null);
 
-  // Poll status occasionally if user is pending
+  // Fetch event details on mount
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/api/admin/event`);
+        const data = await response.json();
+        if (data.success) {
+          setEvent(data.event);
+        }
+      } catch (err) {
+        console.error('Error fetching event on dashboard:', err);
+      }
+    };
+    fetchEvent();
+  }, [apiUrl]);
+
+  // Poll status occasionally if user is pending and has uploaded documents
   useEffect(() => {
     let interval;
-    if (user && user.status === 'pending') {
+    if (user && user.status === 'pending' && user.idCardUrl) {
       interval = setInterval(() => {
         refreshUser();
       }, 5000); // Poll every 5s to show immediate manual verification approvals
@@ -58,22 +75,37 @@ const Dashboard = () => {
             </div>
 
             {/* Secure QR Code Container */}
-            <div className="bg-white p-4.5 rounded-2xl shadow-xl shadow-indigo-500/10 mb-6 border-2 border-indigo-500/30 relative">
-              {user.qrToken ? (
-                <QRCodeSVG
-                  value={user.qrToken}
-                  size={180}
-                  level="H"
-                  includeMargin={true}
-                  className="rounded-lg"
-                />
+            <div className="bg-white p-4.5 rounded-2xl shadow-xl shadow-indigo-500/10 mb-6 border-2 border-indigo-500/30 relative flex flex-col items-center justify-center min-w-[210px] min-h-[210px]">
+              {user.qrScanned ? (
+                <div className="w-[180px] h-[180px] flex flex-col items-center justify-center text-center p-2">
+                  <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/25 rounded-full flex items-center justify-center mb-3">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  </div>
+                  <span className="text-slate-900 font-extrabold text-xs uppercase tracking-wider">Pass Claimed</span>
+                  <span className="text-slate-500 font-bold text-[10px] uppercase mt-1">Checked In</span>
+                  {user.qrScannedAt && (
+                    <span className="text-slate-400 font-mono text-[9px] mt-1.5">
+                      {new Date(user.qrScannedAt).toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              ) : user.qrToken ? (
+                <>
+                  <QRCodeSVG
+                    value={user.qrToken}
+                    size={180}
+                    level="H"
+                    includeMargin={true}
+                    className="rounded-lg"
+                  />
+                  {/* Inner overlay laser animation */}
+                  <div className="absolute top-4 left-4 right-4 h-0.5 bg-indigo-500 shadow-[0_0_10px_2px_rgba(99,102,241,0.5)] animate-pulse pointer-events-none"></div>
+                </>
               ) : (
                 <div className="w-[180px] h-[180px] flex items-center justify-center text-xs text-slate-400 font-medium">
                   Generating QR...
                 </div>
               )}
-              {/* Inner overlay laser animation */}
-              <div className="absolute top-4 left-4 right-4 h-0.5 bg-indigo-500 shadow-[0_0_10px_2px_rgba(99,102,241,0.5)] animate-pulse pointer-events-none"></div>
             </div>
 
             {/* User Selfie Badge */}
@@ -95,6 +127,24 @@ const Dashboard = () => {
               </p>
               {user.email && <p className="text-[10px] text-slate-500">{user.email}</p>}
             </div>
+
+            {/* Active Event Pass Details */}
+            {event && (
+              <div className="mb-5 w-full bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-3.5 flex flex-col items-center">
+                <span className="text-[9px] text-indigo-400 uppercase tracking-wider font-extrabold">Active Event Ticket</span>
+                <span className="text-white font-extrabold text-sm mt-0.5">{event.title}</span>
+                <span className="text-[10px] text-slate-300 font-mono mt-1 font-semibold">{event.venue}</span>
+                <span className="text-[9px] text-slate-400 font-mono mt-0.5">
+                  {new Date(event.dateTime).toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
 
             {/* Quick Details Grid */}
             <div className="w-full grid grid-cols-3 gap-2.5 bg-slate-950/40 rounded-2xl p-4 border border-slate-800/80 mb-6 text-xs text-slate-300">
@@ -143,7 +193,7 @@ const Dashboard = () => {
       )}
 
       {/* Case 2: USER IS PENDING MODERATION */}
-      {user.status === 'pending' && (
+      {user.status === 'pending' && user.idCardUrl && (
         <div className="glass-panel rounded-3xl p-6 md:p-8 border-slate-800/80 flex flex-col items-center">
           <div className="w-14 h-14 bg-indigo-500/10 border border-indigo-500/25 rounded-2xl flex items-center justify-center mb-5 animate-pulse">
             <Clock className="w-7 h-7 text-indigo-400" />
@@ -205,7 +255,7 @@ const Dashboard = () => {
       )}
 
       {/* Case 4: NO ATTEMPT SUBMITTED YET */}
-      {user.status !== 'verified' && user.status !== 'pending' && user.status !== 'rejected' && (
+      {user.status !== 'verified' && user.status !== 'rejected' && (!user.idCardUrl) && (
         <div className="glass-panel rounded-3xl p-6 md:p-8 border-slate-800/80 flex flex-col items-center">
           <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mb-5 text-white shadow-lg shadow-indigo-600/25">
             <Award className="w-7 h-7" />

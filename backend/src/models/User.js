@@ -40,6 +40,13 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  qrScanned: {
+    type: Boolean,
+    default: false,
+  },
+  qrScannedAt: {
+    type: Date,
+  },
   faceMatchConfidence: {
     type: Number,
     default: 0,

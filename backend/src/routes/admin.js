@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Event = require('../models/Event');
 const { protect, adminOnly } = require('../middleware/auth');
 
 // @route   GET api/admin/pending
@@ -62,9 +63,11 @@ router.post('/action', protect, adminOnly, async (req, res) => {
     if (action === 'approve') {
       user.status = 'verified';
       user.rejectionReason = '';
+      user.qrScanned = false; // Reset scan status upon new approval
     } else {
       user.status = 'rejected';
       user.rejectionReason = reason || 'Document image was unclear or face match failed.';
+      user.qrScanned = false;
     }
 
     // Regenerate Signed JWT token with updated status
@@ -77,7 +80,7 @@ router.post('/action', protect, adminOnly, async (req, res) => {
       timestamp: Math.floor(Date.now() / 1000)
     };
 
-    user.qrToken = jwt.sign(qrPayload, jwtSecret);
+    user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
 
     await user.save();
 
@@ -211,6 +214,45 @@ router.get('/export', protect, adminOnly, async (req, res) => {
     const users = await User.find({ role: 'user' }).select('phone name email dob age status faceMatchConfidence createdAt');
     res.json({ success: true, users });
   } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   GET api/admin/event
+// @desc    Get the latest scheduled event (Public)
+// @access  Public
+router.get('/event', async (req, res) => {
+  try {
+    const event = await Event.findOne().sort({ createdAt: -1 });
+    res.json({ success: true, event });
+  } catch (error) {
+    console.error('Fetch event error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   POST api/admin/event
+// @desc    Create or update event (Admin only)
+// @access  Private (Admin only)
+router.post('/event', protect, adminOnly, async (req, res) => {
+  const { title, dateTime, venue, description } = req.body;
+
+  if (!title || !dateTime || !venue) {
+    return res.status(400).json({ success: false, message: 'Title, date/time, and venue are required.' });
+  }
+
+  try {
+    const newEvent = new Event({
+      title,
+      dateTime: new Date(dateTime),
+      venue,
+      description: description || ''
+    });
+
+    await newEvent.save();
+    res.json({ success: true, message: 'Event scheduled successfully.', event: newEvent });
+  } catch (error) {
+    console.error('Create event error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
