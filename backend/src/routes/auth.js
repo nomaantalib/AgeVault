@@ -181,7 +181,13 @@ router.post('/send-otp', async (req, res) => {
     });
   } catch (error) {
     console.error('Send OTP error:', error);
-    res.status(500).json({ success: false, message: 'Failed to dispatch verification code' });
+    const isDbError = error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError';
+    res.status(500).json({
+      success: false,
+      message: isDbError
+        ? 'Database is temporarily unreachable. Please check your MongoDB Atlas IP whitelist and try again.'
+        : 'Failed to dispatch verification code'
+    });
   }
 });
 
@@ -239,7 +245,13 @@ router.post('/verify-otp', async (req, res) => {
     });
   } catch (error) {
     console.error('Verify OTP error:', error);
-    res.status(500).json({ success: false, message: 'Authentication verification failed' });
+    const isDbError = error.name === 'MongoServerSelectionError' || error.name === 'MongoNetworkError';
+    res.status(500).json({
+      success: false,
+      message: isDbError
+        ? 'Database is temporarily unreachable. Please check your MongoDB Atlas IP whitelist and try again.'
+        : 'Authentication verification failed'
+    });
   }
 });
 
