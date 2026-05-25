@@ -245,67 +245,95 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
   }
 
   try {
-    // 1. Fetch latest event details to check if the event timing has passed
+    const jwtSecret = process.env.JWT_SECRET;
+    
+    // Decode and verify JWT signature first to extract user ID
+    let decoded;
+    try {
+      decoded = jwt.verify(qrToken, jwtSecret);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid QR Code: Token has been modified, forged, or is expired.'
+      });
+    }
+
+    // Fetch user from DB
+    const user = await User.findById(decoded.uid);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid QR Code: User profile does not exist in the system.'
+      });
+    }
+
+    // Package user details payload for display on scanner
+    const userDetails = {
+      id: user._id,
+      name: user.name,
+      age: user.age,
+      dob: user.dob,
+      phone: user.phone ? user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3') : 'N/A',
+      selfieUrl: user.selfieUrl,
+      idCardUrl: user.idCardUrl,
+      faceMatchConfidence: user.faceMatchConfidence,
+      verifiedAt: user.qrScannedAt
+    };
+
+    // Get latest event details
     const event = await Event.findOne().sort({ createdAt: -1 });
+
+    // Check 1: Event timeline check
     if (event) {
       const eventTime = new Date(event.dateTime).getTime();
       const currentTime = Date.now();
       if (currentTime > eventTime) {
-        return res.status(400).json({
-          success: false,
-          message: `Access Denied: The event (${event.title}) date and time has passed. This ticket is expired.`
+        return res.json({
+          success: true,
+          verified: false,
+          status: user.status,
+          message: `Access Denied: The event (${event.title}) date and time has passed. This ticket is expired.`,
+          eventTitle: event.title,
+          user: userDetails
         });
       }
     }
 
-    const jwtSecret = process.env.JWT_SECRET;
-    // Verify JWT
-    const decoded = jwt.verify(qrToken, jwtSecret);
-
-    // Replay attack prevention: Ensure QR code was generated within the last 72 hours
+    // Check 2: Replay attack check (72 hours expiration)
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const maxAge = 72 * 60 * 60; // 72 hours
     if (decoded.timestamp && (currentTimestamp - decoded.timestamp) > maxAge) {
-      return res.status(400).json({
-        success: false,
-        message: 'Security Alert: QR Code has expired. Ask the customer to refresh their dashboard.'
+      return res.json({
+        success: true,
+        verified: false,
+        status: user.status,
+        message: 'Access Denied: QR Code has expired (older than 72 hours). Please refresh the dashboard.',
+        eventTitle: event ? event.title : 'General Admission',
+        user: userDetails
       });
     }
 
-    // Fetch user from DB to verify status and prevent stale/revoked verification tokens
-    const user = await User.findById(decoded.uid);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Invalid QR Code: User does not exist.'
-      });
-    }
-
-    // Enforce One-Time Use to prevent ticket sharing / duplication
+    // Check 3: One-time scan check
     if (user.qrScanned) {
-      return res.status(400).json({
-        success: false,
-        message: `Access Denied: This QR pass has already been scanned/used on ${new Date(user.qrScannedAt).toLocaleTimeString()}. Double entry is blocked.`
+      return res.json({
+        success: true,
+        verified: false,
+        status: user.status,
+        message: `Access Denied: Ticket already scanned on ${new Date(user.qrScannedAt).toLocaleTimeString()}. Double entry is blocked.`,
+        eventTitle: event ? event.title : 'General Admission',
+        user: userDetails
       });
     }
 
+    // Check 4: Verification status check
     if (user.status !== 'verified') {
       return res.json({
         success: true,
         verified: false,
         status: user.status,
-        message: `User is not verified. Current status: ${user.status.toUpperCase()}`,
-        user: {
-          id: user._id,
-          name: user.name,
-          age: user.age,
-          dob: user.dob,
-          phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'), // Mask phone
-          selfieUrl: user.selfieUrl,
-          idCardUrl: user.idCardUrl,
-          faceMatchConfidence: user.faceMatchConfidence
-        }
+        message: `Access Denied: User is not verified. Current status: ${user.status.toUpperCase()}`,
+        eventTitle: event ? event.title : 'General Admission',
+        user: userDetails
       });
     }
 
@@ -314,29 +342,22 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
     user.qrScannedAt = new Date();
     await user.save();
 
+    // Update verifiedAt in details
+    userDetails.verifiedAt = user.qrScannedAt;
+
     res.json({
       success: true,
       verified: true,
       status: user.status,
-      message: 'Access Granted: User is verified.',
+      message: 'Access Granted: User pass verified successfully.',
       eventTitle: event ? event.title : 'General Admission',
-      user: {
-        id: user._id,
-        name: user.name,
-        age: user.age,
-        dob: user.dob,
-        phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'),
-        selfieUrl: user.selfieUrl,
-        idCardUrl: user.idCardUrl,
-        faceMatchConfidence: user.faceMatchConfidence,
-        verifiedAt: user.qrScannedAt
-      }
+      user: userDetails
     });
   } catch (error) {
     console.error('Scan verification error:', error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      message: 'Invalid QR Code: Token has been modified or is expired.'
+      message: 'Internal server error during QR scan verification.'
     });
   }
 });
