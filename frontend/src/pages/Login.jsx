@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Info, Mail, User, Phone, CheckCircle, AlertTriangle, Key } from 'lucide-react';
+import Typewriter from '../utils/Typewriter';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -210,38 +211,17 @@ const Login = () => {
         )}
 
         {/* Right Column: Login Card */}
-        <div className="glass-panel-glow rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center border-slate-800 text-left">
+        <div className="glass-panel-glow rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center border-slate-200 dark:border-slate-800/80 text-left">
           
-          {/* Toggle Mode Button */}
-          {isSupabaseConfigured && (
-            <button 
-              type="button"
-              onClick={() => setUseSimulated(!useSimulated)}
-              className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border border-slate-700 bg-slate-800/40 text-slate-400 hover:text-white transition z-20"
-            >
-              {useSimulated ? (
-                <>
-                  <ToggleRight className="w-4 h-4 text-indigo-400" />
-                  Demo Mode
-                </>
-              ) : (
-                <>
-                  <ToggleLeft className="w-4 h-4 text-slate-500" />
-                  Live (Supabase)
-                </>
-              )}
-            </button>
-          )}
-
           <div className="flex flex-col items-center mb-6">
-            <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 mb-3">
+            <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/10 mb-3">
               <Shield className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-white font-sans text-center">
-              AgeVault
+            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans text-center">
+              <Typewriter text="AgeVault" speed={85} className="blink-cursor" />
             </h2>
-            <p className="text-xs text-slate-400 mt-1 text-center">
-              Secure Magic Link Access System
+            <p className="text-xs text-slate-500 dark:text-slate-450 mt-1 text-center font-semibold">
+              Secure Email OTP Verification System
             </p>
           </div>
 

@@ -4,74 +4,102 @@
 
 @layer base {
   body {
-    @apply font-sans bg-dark-900 text-slate-100 antialiased;
+    @apply font-sans antialiased transition-colors duration-500;
   }
 }
 
-/* Glassmorphism custom styles */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Premium Light/Dark Theme Utilities */
+.light {
+  --bg-animate-gradient: linear-gradient(-45deg, #f5f3ff, #f8fafc, #e0e7ff, #faf5ff);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-glow: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(99, 102, 241, 0.15);
+  --glass-glow-border: rgba(99, 102, 241, 0.25);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+  --glass-glow-shadow: 0 10px 40px 0 rgba(99, 102, 241, 0.12);
+  --glass-input-bg: rgba(255, 255, 255, 0.75);
+  --glass-input-border: rgba(99, 102, 241, 0.2);
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-muted: rgba(226, 232, 240, 0.8);
+  --theme-switch-bg: rgba(241, 245, 249, 0.8);
 }
 
-.glass-panel-glow {
-  background: rgba(17, 24, 39, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
-}
-
-.glass-input {
-  background: rgba(3, 7, 18, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-}
-
-.glass-input:focus {
-  border-color: rgba(99, 102, 241, 0.6);
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
-  outline: none;
+.dark {
+  --bg-animate-gradient: linear-gradient(-45deg, #090d16, #030712, #141332, #020617);
+  --glass-bg: rgba(17, 24, 39, 0.7);
+  --glass-bg-glow: rgba(17, 24, 39, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-glow-border: rgba(99, 102, 241, 0.22);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  --glass-glow-shadow: 0 0 35px rgba(99, 102, 241, 0.12);
+  --glass-input-bg: rgba(3, 7, 18, 0.45);
+  --glass-input-border: rgba(255, 255, 255, 0.1);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-muted: rgba(30, 41, 59, 0.6);
+  --theme-switch-bg: rgba(15, 23, 42, 0.6);
 }
 
 /* Animated gradient background */
 .animated-bg {
-  background: linear-gradient(-45deg, #0f172a, #030712, #1e1b4b, #020617);
+  background: var(--bg-animate-gradient);
   background-size: 400% 400%;
   animation: gradient 15s ease infinite;
+  transition: background 0.8s ease;
 }
 
 @keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* Pulse animation for scanner glow */
+/* Glassmorphism custom styles */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-glow {
+  background: var(--glass-bg-glow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-glow-border);
+  box-shadow: var(--glass-glow-shadow);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-input {
+  background: var(--glass-input-bg);
+  border: 1px solid var(--glass-input-border);
+  color: var(--text-primary);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-input:focus {
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+  outline: none;
+}
+
+/* Pulsing scanner glow laser */
 .scanner-laser {
   height: 3px;
-  background: linear-gradient(to right, transparent, #ef4444, transparent);
+  background: linear-gradient(to right, transparent, #6366f1, transparent);
   animation: laser-scan 2s linear infinite;
 }
 
 @keyframes laser-scan {
-  0% {
-    top: 0%;
-  }
-  50% {
-    top: 100%;
-  }
-  100% {
-    top: 0%;
-  }
+  0% { top: 0%; }
+  50% { top: 100%; }
+  100% { top: 0%; }
 }
 
 /* Modern text gradient */
@@ -79,4 +107,71 @@
   background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 50%, #4338ca 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.light .text-gradient {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 60%, #1e1b4b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Sexy premium transitions and animations */
+.animate-fade-in {
+  animation: fadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; filter: blur(6px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Caret blinking typewriter cursor */
+.blink-cursor::after {
+  content: '|';
+  color: #6366f1;
+  animation: blink 0.75s step-end infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  from, to { color: transparent }
+  50% { color: #6366f1 }
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 9999px;
+  transition: all 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.45);
 }
