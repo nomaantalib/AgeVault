@@ -178,8 +178,8 @@ router.post('/supabase-login', async (req, res) => {
     // Check if user exists by email or phone
     let user = await User.findOne({ $or: [{ email }, { phone: phone || '___none___' }] });
 
-    // 1. Enforce single-person Admin: Only admin@agevault.com or +919999999999 can log in as Admin
-    if (role === 'admin' && email !== 'admin@agevault.com' && phone !== '+919999999999') {
+    // 1. Enforce single-person Admin: Only mohdnomaantalib@gmail.com or +919999999999 can log in as Admin
+    if (role === 'admin' && email !== 'mohdnomaantalib@gmail.com' && phone !== '+919999999999') {
       return res.status(403).json({ success: false, message: 'Access Denied: Only the authorized administrator account can log in as Admin.' });
     }
 
@@ -195,7 +195,7 @@ router.post('/supabase-login', async (req, res) => {
 
     let finalRole = role || 'user';
     // Backdoors for easy testing/demo
-    if (email === 'admin@agevault.com' || phone === '+919999999999') {
+    if (email === 'mohdnomaantalib@gmail.com' || phone === '+919999999999') {
       finalRole = 'admin';
     } else if (email === 'staff@agevault.com' || phone === '+918888888888') {
       finalRole = 'club';
@@ -281,8 +281,8 @@ router.post('/send-otp', async (req, res) => {
       ] 
     });
 
-    // 1. Enforce single-person Admin: Only admin@agevault.com or +919999999999 can log in as Admin
-    if (role === 'admin' && email !== 'admin@agevault.com' && formattedPhone !== '+919999999999') {
+    // 1. Enforce single-person Admin: Only mohdnomaantalib@gmail.com or +919999999999 can log in as Admin
+    if (role === 'admin' && email !== 'mohdnomaantalib@gmail.com' && formattedPhone !== '+919999999999') {
       return res.status(403).json({ success: false, message: 'Access Denied: Only the authorized administrator account can log in as Admin.' });
     }
 
@@ -301,7 +301,7 @@ router.post('/send-otp', async (req, res) => {
     }
 
     let finalRole = role || 'user';
-    if (email === 'admin@agevault.com' || formattedPhone === '+919999999999') {
+    if (email === 'mohdnomaantalib@gmail.com' || formattedPhone === '+919999999999') {
       finalRole = 'admin';
     } else if (email === 'staff@agevault.com' || formattedPhone === '+918888888888') {
       finalRole = 'club';

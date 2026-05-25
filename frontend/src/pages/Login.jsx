@@ -448,7 +448,7 @@ const Login = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
                   <span className="text-slate-500 block">Admin:</span>
-                  <code className="text-white font-mono font-semibold">admin@agevault.com</code>
+                  <code className="text-white font-mono font-semibold">mohdnomaantalib@gmail.com</code>
                 </div>
                 <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
                   <span className="text-slate-500 block">Club Staff:</span>
