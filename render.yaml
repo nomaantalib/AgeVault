@@ -13,5 +13,7 @@ services:
         generateValue: true
       - key: USE_SIMULATED_OTP
         value: "false"
-      - key: RESEND_API_KEY
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
         sync: false
