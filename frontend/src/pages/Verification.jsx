@@ -179,57 +179,134 @@ const Verification = () => {
 
       console.log('OCR Extracted Text:', text);
 
-      // Simple regex parser for DOB (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD etc.)
-      const dobRegex = /\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g;
-      const matches = text.match(dobRegex);
-      
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
       let dobFound = '';
-      if (matches && matches.length > 0) {
-        // Aadhaar cards typically format as DD/MM/YYYY
-        // Parse into YYYY-MM-DD format for HTML date inputs
-        const parts = matches[0].split(/[\/\-]/);
-        if (parts[0].length === 4) {
-          // Already YYYY-MM-DD
-          dobFound = matches[0];
-        } else {
-          // Assume DD/MM/YYYY -> convert to YYYY-MM-DD
-          dobFound = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      let nameFound = '';
+
+      // --- 1. DOB PARSING ---
+      // Search lines for common birth labels
+      for (const line of lines) {
+        const cleanLine = line.toLowerCase();
+        if (cleanLine.includes('dob') || cleanLine.includes('birth') || cleanLine.includes('d.o.b') || cleanLine.includes('date of')) {
+          const match = line.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
+          if (match) {
+            const parts = match[0].split(/[\/\-]/);
+            if (parts[0].length === 4) {
+              dobFound = match[0];
+            } else {
+              dobFound = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            break;
+          }
+          const ymdMatch = line.match(/\b\d{4}[\/\-]\d{2}[\/\-]\d{2}\b/);
+          if (ymdMatch) {
+            dobFound = ymdMatch[0];
+            break;
+          }
         }
-        setExtractedDob(dobFound);
-        setDob(dobFound);
       }
 
-      // Look for Year of Birth (e.g. "Year of Birth : 1999" or "YOB: 1999")
+      // General fallback check for any DD/MM/YYYY date pattern if not found near labels
+      if (!dobFound) {
+        const matches = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g);
+        if (matches && matches.length > 0) {
+          const parts = matches[0].split(/[\/\-]/);
+          dobFound = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+
+      // Year of Birth fallback for Aadhaar card
       if (!dobFound) {
         const yobRegex = /(?:Year of Birth|YOB|Birth|Year)\s*:\s*(\d{4})/i;
         const yobMatch = text.match(yobRegex);
         if (yobMatch && yobMatch[1]) {
-          dobFound = `${yobMatch[1]}-01-01`; // Default to Jan 1st of that year
-          setExtractedDob(dobFound);
-          setDob(dobFound);
+          dobFound = `${yobMatch[1]}-01-01`;
         }
       }
 
-      // Try to extract Name (e.g. Line before DOB, or below "Government of India" / "IND")
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-      let nameFound = '';
-      
-      // Look for common keywords and extract the adjacent lines
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.toLowerCase().includes('dob') || line.toLowerCase().includes('date of birth') || line.toLowerCase().includes('year of birth')) {
-          // The name is usually 1 or 2 lines above DOB in ID cards
-          if (i > 0) {
-            nameFound = lines[i - 1];
-            // Remove common noise
-            nameFound = nameFound.replace(/[^a-zA-Z\s]/g, '').trim();
-            if (nameFound.length > 3 && !nameFound.toLowerCase().includes('government')) {
+      // --- 2. NAME PARSING BY DOCUMENT TYPE ---
+      if (idType === 'aadhaar') {
+        // Aadhaar: Name is typically right above the gender / YOB / DOB line
+        for (let i = 0; i < lines.length; i++) {
+          const cleanLine = lines[i].toLowerCase();
+          if (cleanLine.includes('dob') || cleanLine.includes('birth') || cleanLine.includes('yob') || cleanLine.includes('male') || cleanLine.includes('female')) {
+            if (i > 0) {
+              let candidate = lines[i - 1].replace(/[^a-zA-Z\s]/g, '').trim();
+              if (candidate.length > 3 && !candidate.toLowerCase().includes('government') && !candidate.toLowerCase().includes('unique')) {
+                nameFound = candidate;
+                break;
+              }
+            }
+          }
+        }
+      } else if (idType === 'pan') {
+        // PAN Card: Filter generic headers; name is the first clean alphabetical uppercase line
+        const genericWords = ['income', 'tax', 'department', 'govt', 'india', 'permanent', 'account', 'number', 'card', 'father', 'signature'];
+        for (const line of lines) {
+          const cleanLine = line.toLowerCase();
+          const isGeneric = genericWords.some(w => cleanLine.includes(w));
+          if (!isGeneric && line.replace(/[^a-zA-Z]/g, '').length > 5) {
+            if (/^[A-Z\s\.]+$/.test(line.trim())) {
+              nameFound = line.trim();
               break;
+            }
+          }
+        }
+      } else if (idType === 'license') {
+        // Driver's License: Look for line with "Name"
+        for (let i = 0; i < lines.length; i++) {
+          const cleanLine = lines[i].toLowerCase();
+          if (cleanLine.includes('name') || cleanLine.includes('fn') || cleanLine.includes('ln')) {
+            let match = lines[i].replace(/^(?:name|fn|ln|full name)\s*[\:\-\=]?\s*/i, '').replace(/[^a-zA-Z\s]/g, '').trim();
+            if (match.length > 3) {
+              nameFound = match;
+              break;
+            } else if (i < lines.length - 1) {
+              let candidate = lines[i + 1].replace(/[^a-zA-Z\s]/g, '').trim();
+              if (candidate.length > 3 && !candidate.toLowerCase().includes('licence') && !candidate.toLowerCase().includes('address')) {
+                nameFound = candidate;
+                break;
+              }
+            }
+          }
+        }
+      } else if (idType === 'passport') {
+        // Passport: Look for Given Name / Surname labels
+        for (let i = 0; i < lines.length; i++) {
+          const cleanLine = lines[i].toLowerCase();
+          if (cleanLine.includes('given name') || cleanLine.includes('sur name') || cleanLine.includes('surname')) {
+            let match = lines[i].replace(/^(?:given name|surname|sur name|name)\s*[\:\-\=]?\s*/i, '').replace(/[^a-zA-Z\s]/g, '').trim();
+            if (match.length > 3) {
+              nameFound = match;
+              break;
+            } else if (i < lines.length - 1) {
+              let candidate = lines[i + 1].replace(/[^a-zA-Z\s]/g, '').trim();
+              if (candidate.length > 3) {
+                nameFound = candidate;
+                break;
+              }
             }
           }
         }
       }
 
+      // Generic fallback parser if document-specific name extraction yielded nothing
+      if (!nameFound) {
+        for (const line of lines) {
+          const cleanLine = line.toLowerCase();
+          const genericWords = ['government', 'india', 'unique', 'tax', 'department', 'card', 'licence', 'license', 'passport', 'republic', 'birth'];
+          const isGeneric = genericWords.some(w => cleanLine.includes(w));
+          if (!isGeneric && line.replace(/[^a-zA-Z]/g, '').length > 6) {
+            nameFound = line.replace(/[^a-zA-Z\s]/g, '').trim();
+            break;
+          }
+        }
+      }
+
+      if (dobFound) {
+        setExtractedDob(dobFound);
+        setDob(dobFound);
+      }
       if (nameFound) {
         setExtractedName(nameFound);
         setFullName(nameFound);
