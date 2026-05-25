@@ -197,18 +197,21 @@ router.post('/submit', protect, upload.fields([
     user.rejectionReason = ''; // Clear previous reasons
     user.qrScanned = false; // Reset scan status on new submission
 
-    // Generate Encrypted / Signed JWT for QR verification
+    // Generate Encrypted / Signed JWT for QR verification ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
-    const qrPayload = {
-      uid: user._id,
-      name: user.name,
-      verified: status === 'verified',
-      age: age,
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-
-    const qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
-    user.qrToken = qrToken;
+    if (status === 'verified') {
+      const qrPayload = {
+        uid: user._id,
+        name: user.name,
+        verified: true,
+        age: age,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      const qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
+      user.qrToken = qrToken;
+    } else {
+      user.qrToken = '';
+    }
 
     await user.save();
 
@@ -420,6 +423,7 @@ router.post('/access', protect, clubOrAdmin, async (req, res) => {
     } else {
       // Action: revoke
       user.status = 'rejected';
+      user.qrToken = ''; // Clear QR token upon revocation
       user.qrScanned = false;
       user.qrScannedAt = undefined;
       await user.save();

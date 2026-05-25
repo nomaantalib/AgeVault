@@ -54,14 +54,13 @@ const Verification = () => {
     });
   };
 
-  const compressImage = (file) => {
+  const compressImage = (file, max_size = 800, quality = 0.3) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const max_size = 1000;
           let width = img.width;
           let height = img.height;
           
@@ -86,15 +85,16 @@ const Verification = () => {
             const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' });
             resolve({
               file: compressed,
-              preview: canvas.toDataURL('image/jpeg', 0.5)
+              preview: canvas.toDataURL('image/jpeg', quality)
             });
-          }, 'image/jpeg', 0.5);
+          }, 'image/jpeg', quality);
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
   };
+
 
   const handleProceedToSelfie = () => {
     setError('');
@@ -260,7 +260,12 @@ const Verification = () => {
             const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
             const page = await pdf.getPage(1);
             
-            const viewport = page.getViewport({ scale: 2.0 });
+            // Limit PDF rendering scale for low storage size, ensuring sharp text for OCR
+            const max_size = 800;
+            const unscaledViewport = page.getViewport({ scale: 1.0 });
+            const calculatedScale = max_size / Math.max(unscaledViewport.width, unscaledViewport.height);
+            const viewport = page.getViewport({ scale: Math.max(calculatedScale, 1.5) });
+            
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             canvas.height = viewport.height;
@@ -271,11 +276,11 @@ const Verification = () => {
             canvas.toBlob(async (blob) => {
               const compressedFile = new File([blob], 'aadhaar_id.jpg', { type: 'image/jpeg' });
               setIdCardFile(compressedFile);
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.3); // 30% quality for minimum footprint
               setIdCardPreview(dataUrl);
               
               runOCR(compressedFile);
-            }, 'image/jpeg', 0.5);
+            }, 'image/jpeg', 0.3);
           } catch (err) {
             console.error('PDF page render error:', err);
             setError('Failed to extract image from PDF. Please make sure the PDF is not password-protected.');
@@ -285,7 +290,7 @@ const Verification = () => {
         reader.readAsArrayBuffer(file);
       } else {
         setLoadingMsg('Compressing image for storage...');
-        const compressedData = await compressImage(file);
+        const compressedData = await compressImage(file, 800, 0.3); // 800px max, 30% quality
         setIdCardFile(compressedData.file);
         setIdCardPreview(compressedData.preview);
         
@@ -375,16 +380,33 @@ const Verification = () => {
 
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    
+    // Resize webcam selfie capture to max size 480px for minimal storage occupancy
+    const max_selfie_size = 480;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > height) {
+      if (width > max_selfie_size) {
+        height *= max_selfie_size / width;
+        width = max_selfie_size;
+      }
+    } else {
+      if (height > max_selfie_size) {
+        width *= max_selfie_size / height;
+        height = max_selfie_size;
+      }
+    }
+    
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, 0, 0, width, height);
 
-    // Save image blob and URL preview with 50% compression quality
+    // Save image blob and URL preview with 30% compression quality for least storage occupancy
     canvas.toBlob(async (blob) => {
       const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
       setSelfieFile(file);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
       setSelfiePreview(dataUrl);
 
       // Stop video feed
@@ -392,7 +414,7 @@ const Verification = () => {
 
       // Run Face Match
       performFaceMatch(idCardPreview, dataUrl);
-    }, 'image/jpeg', 0.5);
+    }, 'image/jpeg', 0.3);
   };
 
   // Fallback for upload of selfie in case camera doesn't work
@@ -401,7 +423,7 @@ const Verification = () => {
     if (!file) return;
 
     setLoadingMsg('Compressing selfie for storage...');
-    const compressedData = await compressImage(file);
+    const compressedData = await compressImage(file, 480, 0.3); // 480px max, 30% quality
     setSelfieFile(compressedData.file);
     setSelfiePreview(compressedData.preview);
     performFaceMatch(idCardPreview, compressedData.preview);

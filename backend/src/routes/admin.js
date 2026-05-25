@@ -71,17 +71,20 @@ router.post('/action', protect, adminOnly, async (req, res) => {
       user.qrScanned = false;
     }
 
-    // Regenerate Signed JWT token with updated status
+    // Regenerate Signed JWT token ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
-    const qrPayload = {
-      uid: user._id,
-      name: user.name,
-      verified: user.status === 'verified',
-      age: user.age,
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-
-    user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
+    if (user.status === 'verified') {
+      const qrPayload = {
+        uid: user._id,
+        name: user.name,
+        verified: true,
+        age: user.age,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
+    } else {
+      user.qrToken = '';
+    }
 
     await user.save();
 
@@ -138,16 +141,20 @@ router.post('/users', protect, adminOnly, async (req, res) => {
       age: age || undefined,
       club: club || 'The Palace Lounge',
     });
-    // Generate QR token if verified
+    // Generate QR token ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
-    const qrPayload = {
-      uid: newUser._id,
-      name: newUser.name,
-      verified: newUser.status === 'verified',
-      age: newUser.age || 0,
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-    newUser.qrToken = jwt.sign(qrPayload, jwtSecret);
+    if (newUser.status === 'verified') {
+      const qrPayload = {
+        uid: newUser._id,
+        name: newUser.name,
+        verified: true,
+        age: newUser.age || 0,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      newUser.qrToken = jwt.sign(qrPayload, jwtSecret);
+    } else {
+      newUser.qrToken = '';
+    }
     await newUser.save();
     res.json({ success: true, user: newUser });
   } catch (error) {
@@ -177,16 +184,20 @@ router.put('/users/:id', protect, adminOnly, async (req, res) => {
     if (age !== undefined) {
       user.age = age;
     }
-    // Regenerate QR token
+    // Regenerate QR token ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
-    const qrPayload = {
-      uid: user._id,
-      name: user.name,
-      verified: user.status === 'verified',
-      age: user.age || 0,
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-    user.qrToken = jwt.sign(qrPayload, jwtSecret);
+    if (user.status === 'verified') {
+      const qrPayload = {
+        uid: user._id,
+        name: user.name,
+        verified: true,
+        age: user.age || 0,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      user.qrToken = jwt.sign(qrPayload, jwtSecret);
+    } else {
+      user.qrToken = '';
+    }
     await user.save();
     res.json({ success: true, user });
   } catch (error) {

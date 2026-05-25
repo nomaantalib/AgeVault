@@ -329,6 +329,24 @@ router.post('/verify-otp', async (req, res) => {
 router.get('/me', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Self-healing: if user is verified but has no qrToken, generate it dynamically
+    if (user.status === 'verified' && !user.qrToken) {
+      const jwtSecret = process.env.JWT_SECRET;
+      const qrPayload = {
+        uid: user._id,
+        name: user.name,
+        verified: true,
+        age: user.age || 18,
+        timestamp: Math.floor(Date.now() / 1000)
+      };
+      user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
+      await user.save();
+    }
+
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
