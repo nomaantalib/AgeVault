@@ -27,5 +27,7 @@ services:
         sync: false
       - key: RESEND_API_KEY_7
         sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
 
 

@@ -327,7 +327,7 @@ let currentResendKeyIndex = 0;
 const executeResendCall = (apiKey, email, otp, subject, htmlTemplate) => {
   return new Promise((resolve) => {
     const data = JSON.stringify({
-      from: 'AgeVault <onboarding@resend.dev>',
+      from: process.env.RESEND_FROM_EMAIL || 'AgeVault <onboarding@resend.dev>',
       to: [email],
       subject: subject || 'AgeVault Admin Action Authorization Code',
       html: htmlTemplate || `
