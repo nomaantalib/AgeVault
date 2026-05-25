@@ -1,11 +1,10 @@
 services:
-  # Backend Web Service (Node/Express API)
+  # Unified Web Service (Express API + React Frontend)
   - type: web
-    name: agevault-backend
+    name: agevault-unified
     env: node
     plan: free
-    rootDir: backend
-    buildCommand: npm install
+    buildCommand: npm run install-all && npm run build-all
     startCommand: npm start
     envVars:
       - key: MONGO_URI
@@ -14,18 +13,3 @@ services:
         generateValue: true
       - key: USE_SIMULATED_OTP
         value: "false"
-
-  # Frontend Static Site (React/Vite app)
-  - type: web
-    name: agevault-frontend
-    env: static
-    plan: free
-    rootDir: frontend
-    buildCommand: node ../backend/scripts/download-models.js && npm install && npm run build
-    publishDir: dist
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: agevault-backend
-          type: web
-          property: host

@@ -1,0 +1,15 @@
+{
+  "name": "agevault-monorepo",
+  "version": "1.0.0",
+  "description": "Unified AgeVault MVP deployment repository",
+  "scripts": {
+    "install-backend": "cd backend && npm install",
+    "install-frontend": "cd frontend && npm install",
+    "install-all": "npm run install-backend && npm run install-frontend",
+    "download-models": "node backend/scripts/download-models.js",
+    "build-frontend": "cd frontend && npm run build",
+    "build-all": "npm run download-models && npm run build-frontend",
+    "start": "node backend/src/index.js"
+  },
+  "dependencies": {}
+}
