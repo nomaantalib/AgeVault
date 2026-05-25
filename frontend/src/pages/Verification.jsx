@@ -19,6 +19,7 @@ const Verification = () => {
   const [loadingMsg, setLoadingMsg] = useState('Initializing AI engines...');
 
   // Files & Images State
+  const [idType, setIdType] = useState('aadhaar'); // 'aadhaar', 'pan', 'passport'
   const [idCardFile, setIdCardFile] = useState(null);
   const [idCardPreview, setIdCardPreview] = useState('');
   const [selfieFile, setSelfieFile] = useState(null);
@@ -390,10 +391,52 @@ const Verification = () => {
         {step === 1 && (
           <div className="space-y-6">
             <div className="text-center md:text-left">
-              <h2 className="text-2xl font-bold text-white">Upload Your ID Card</h2>
+              <h2 className="text-2xl font-bold text-white">Select and Upload Government ID</h2>
               <p className="text-sm text-slate-400 mt-1">
-                We accept Aadhaar, PAN Card, Driving License, or Passport. Face and DOB must be visible.
+                Please select your ID type and upload a clear, high-resolution front-facing image.
               </p>
+            </div>
+
+            {/* ID Type Selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Identity Document Type
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setIdType('aadhaar'); setIdCardFile(null); setIdCardPreview(''); }}
+                  className={`py-3.5 rounded-xl border text-xs font-bold transition duration-300 ${
+                    idType === 'aadhaar'
+                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg shadow-indigo-500/5'
+                      : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                  }`}
+                >
+                  Aadhaar Card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIdType('pan'); setIdCardFile(null); setIdCardPreview(''); }}
+                  className={`py-3.5 rounded-xl border text-xs font-bold transition duration-300 ${
+                    idType === 'pan'
+                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg shadow-indigo-500/5'
+                      : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                  }`}
+                >
+                  PAN Card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIdType('passport'); setIdCardFile(null); setIdCardPreview(''); }}
+                  className={`py-3.5 rounded-xl border text-xs font-bold transition duration-300 ${
+                    idType === 'passport'
+                      ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg shadow-indigo-500/5'
+                      : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                  }`}
+                >
+                  Passport
+                </button>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6 items-center">
@@ -401,8 +444,8 @@ const Verification = () => {
                 {!idCardPreview ? (
                   <label className="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-900/30 transition-all duration-300 min-h-[220px]">
                     <Upload className="w-10 h-10 text-slate-500 mb-3 animate-bounce" />
-                    <span className="text-sm font-semibold text-slate-300">Choose File or Drop here</span>
-                    <span className="text-xs text-slate-500 mt-1.5">PNG, JPG or JPEG up to 10MB</span>
+                    <span className="text-sm font-semibold text-slate-300">Upload {idType.toUpperCase()} Image</span>
+                    <span className="text-xs text-slate-500 mt-1">PNG, JPG or JPEG up to 10MB</span>
                     <input 
                       type="file" 
                       accept="image/*" 
