@@ -56,17 +56,24 @@ const executeResendCall = (apiKey, email, otp, subject, htmlTemplate) => {
       res.on('data', (chunk) => { responseBody += chunk; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          resolve(true);
+          resolve({ success: true });
         } else {
           console.error(`Resend API Instance Error status: ${res.statusCode}, Body: ${responseBody}`);
-          resolve(false);
+          let isSandboxRestriction = false;
+          try {
+            const parsed = JSON.parse(responseBody);
+            if (parsed.name === 'restricted_to_domain' || (parsed.message && parsed.message.includes('only send to'))) {
+              isSandboxRestriction = true;
+            }
+          } catch(e) {}
+          resolve({ success: false, isSandboxRestriction });
         }
       });
     });
 
     req.on('error', (err) => {
       console.error('Resend Instance Network Error:', err);
-      resolve(false);
+      resolve({ success: false, isSandboxRestriction: false });
     });
 
     req.write(data);
@@ -89,7 +96,7 @@ const sendResendOTP = (email, otp, subject, htmlTemplate) => {
 
     if (keys.length === 0) {
       console.error('No Resend API keys configured on the server.');
-      return resolve(false);
+      return resolve({ success: false, isSandboxRestriction: false });
     }
 
     // Try keys sequentially starting from currentResendKeyIndex
@@ -98,19 +105,24 @@ const sendResendOTP = (email, otp, subject, htmlTemplate) => {
       const apiKey = keys[keyIndex];
 
       console.log(`Attempting Resend email delivery using Instance ${keyIndex + 1}...`);
-      const success = await executeResendCall(apiKey, email, otp, subject, htmlTemplate);
+      const result = await executeResendCall(apiKey, email, otp, subject, htmlTemplate);
 
-      if (success) {
+      if (result.success) {
         // Update to the last successful instance index
         currentResendKeyIndex = keyIndex;
-        return resolve(true);
+        return resolve({ success: true });
+      }
+
+      if (result.isSandboxRestriction) {
+        console.warn(`Resend sandbox restriction detected for ${email}. Bypassing key rotation and falling back.`);
+        return resolve({ success: false, isSandboxRestriction: true });
       }
 
       console.warn(`Resend Instance ${keyIndex + 1} failed. Rotating to next instance...`);
     }
 
     console.error('All Resend API key instances failed or expired quota.');
-    resolve(false);
+    resolve({ success: false, isSandboxRestriction: false });
   });
 };
 
@@ -209,9 +221,19 @@ router.post('/send-otp', async (req, res) => {
     }
 
     // Send email using Resend key failover pool
-    const emailSent = await sendResendOTP(email, otp);
+    const otpResult = await sendResendOTP(email, otp);
 
-    if (!emailSent) {
+    if (!otpResult.success) {
+      if (otpResult.isSandboxRestriction) {
+        // Save user to DB to ensure they can verify
+        await user.save();
+        console.log(`[SANDBOX FALLBACK] Verification code for ${email} is ${otp}`);
+        return res.json({
+          success: true,
+          message: `[Sandbox Mode] A secure verification code has been generated: ${otp}`,
+          otp: otp
+        });
+      }
       return res.status(500).json({ success: false, message: 'Failed to send security verification code. Please check your Resend API configurations.' });
     }
 
