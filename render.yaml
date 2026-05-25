@@ -13,10 +13,19 @@ services:
         generateValue: true
       - key: USE_SIMULATED_OTP
         value: "false"
-      - key: BREVO_API_KEY
+      - key: RESEND_API_KEY_1
         sync: false
-      - key: BREVO_SENDER_EMAIL
+      - key: RESEND_API_KEY_2
         sync: false
-      - key: BREVO_SENDER_NAME
+      - key: RESEND_API_KEY_3
         sync: false
+      - key: RESEND_API_KEY_4
+        sync: false
+      - key: RESEND_API_KEY_5
+        sync: false
+      - key: RESEND_API_KEY_6
+        sync: false
+      - key: RESEND_API_KEY_7
+        sync: false
+
 

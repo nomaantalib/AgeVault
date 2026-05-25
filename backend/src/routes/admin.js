@@ -321,30 +321,16 @@ router.delete('/event/:id', protect, adminOnly, async (req, res) => {
 // HTTPS library for Resend API OTP calls
 const https = require('https');
 
-// Helper to send Admin security verification code via Brevo
-const sendBrevoOTP = (email, otp) => {
+// Global Resend Key Tracker for Failover Rotation (Admin Route)
+let currentResendKeyIndex = 0;
+
+const executeResendCall = (apiKey, email, otp, subject, htmlTemplate) => {
   return new Promise((resolve) => {
-    const apiKey = process.env.BREVO_API_KEY;
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@agevault.com';
-    const senderName = process.env.BREVO_SENDER_NAME || 'AgeVault';
-
-    if (!apiKey) {
-      console.error('BREVO_API_KEY is not configured on the server.');
-      return resolve(false);
-    }
-
     const data = JSON.stringify({
-      sender: {
-        name: senderName,
-        email: senderEmail
-      },
-      to: [
-        {
-          email: email
-        }
-      ],
-      subject: 'AgeVault Admin Action Authorization Code',
-      htmlContent: `
+      from: 'AgeVault <onboarding@resend.dev>',
+      to: [email],
+      subject: subject || 'AgeVault Admin Action Authorization Code',
+      html: htmlTemplate || `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #f8fafc; padding: 40px; border-radius: 24px; max-width: 600px; margin: 0 auto; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
           <div style="text-align: center; margin-bottom: 30px;">
             <div style="display: inline-block; padding: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 16px; margin-bottom: 12px;">
@@ -366,36 +352,76 @@ const sendBrevoOTP = (email, otp) => {
     });
 
     const options = {
-      hostname: 'api.brevo.com',
-      path: '/v3/smtp/email',
+      hostname: 'api.resend.com',
+      path: '/emails',
       method: 'POST',
       headers: {
-        'api-key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(data)
       }
     };
 
     const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
+      let responseBody = '';
+      res.on('data', (chunk) => { responseBody += chunk; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(true);
         } else {
-          console.error(`Brevo Send OTP Error: Status ${res.statusCode}, Body: ${body}`);
+          console.error(`Resend API Instance Error status: ${res.statusCode}, Body: ${responseBody}`);
           resolve(false);
         }
       });
     });
 
     req.on('error', (err) => {
-      console.error('Brevo Send OTP Network Error:', err);
+      console.error('Resend Instance Network Error:', err);
       resolve(false);
     });
 
     req.write(data);
     req.end();
+  });
+};
+
+const sendResendOTP = (email, otp, subject, htmlTemplate) => {
+  return new Promise(async (resolve) => {
+    // Gather all active environment API keys (supports 7 instances)
+    const keys = [];
+    for (let i = 1; i <= 7; i++) {
+      const key = process.env[`RESEND_API_KEY_${i}`];
+      if (key) keys.push(key);
+    }
+    // Fallback to general RESEND_API_KEY if configured and not already included
+    if (process.env.RESEND_API_KEY && !keys.includes(process.env.RESEND_API_KEY)) {
+      keys.unshift(process.env.RESEND_API_KEY);
+    }
+
+    if (keys.length === 0) {
+      console.error('No Resend API keys configured on the server.');
+      return resolve(false);
+    }
+
+    // Try keys sequentially starting from currentResendKeyIndex
+    for (let attempt = 0; attempt < keys.length; attempt++) {
+      const keyIndex = (currentResendKeyIndex + attempt) % keys.length;
+      const apiKey = keys[keyIndex];
+
+      console.log(`Attempting Resend email delivery using Instance ${keyIndex + 1}...`);
+      const success = await executeResendCall(apiKey, email, otp, subject, htmlTemplate);
+
+      if (success) {
+        // Update to the last successful instance index
+        currentResendKeyIndex = keyIndex;
+        return resolve(true);
+      }
+
+      console.warn(`Resend Instance ${keyIndex + 1} failed. Rotating to next instance...`);
+    }
+
+    console.error('All Resend API key instances failed or expired quota.');
+    resolve(false);
   });
 };
 
@@ -425,19 +451,20 @@ const verifyAdminOTP = async (req, res, otpCode) => {
     }
 
     // Check if key is configured
-    if (!process.env.BREVO_API_KEY) {
-      return { success: false, status: 500, message: 'Real OTP transmission failed: BREVO_API_KEY is not configured on the server.' };
+    const keysCount = [1, 2, 3, 4, 5, 6, 7].filter(i => process.env[`RESEND_API_KEY_${i}`]).length + (process.env.RESEND_API_KEY ? 1 : 0);
+    if (keysCount === 0) {
+      return { success: false, status: 500, message: 'Real OTP transmission failed: No RESEND_API_KEY instances are configured on the server.' };
     }
     
-    const emailSent = await sendBrevoOTP(adminEmail, otp);
+    const emailSent = await sendResendOTP(adminEmail, otp);
     if (!emailSent) {
-      return { success: false, status: 500, message: 'Failed to send security verification code. Please check your Brevo configurations.' };
+      return { success: false, status: 500, message: 'Failed to send security verification code. Please check your Resend configurations.' };
     }
     
     return { success: false, status: 400, requiresOtp: true, message: `Security Verification: A secure 6-digit authorization code has been sent to your administrator email (${adminEmail}). Please input it to authorize this action.` };
   }
   
-  // Verify OTP (Brevo sends, server verifies against MongoDB)
+  // Verify OTP (Resend sends, server verifies against MongoDB)
   if (admin.otp !== otpCode) {
     return { success: false, status: 400, message: 'Security Verification Failed: Invalid authorization code.' };
   }
