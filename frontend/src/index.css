@@ -9,22 +9,22 @@
   }
 }
 
-/* Premium Light/Dark Theme Utilities with Enhanced High Contrast */
+/* Premium Light/Dark Theme Utilities with Enhanced High Contrast & Warm Tones */
 .light {
-  --bg-animate-gradient: linear-gradient(-45deg, #eef2ff, #f8fafc, #e0e7ff, #f5f3ff);
-  --glass-bg: rgba(255, 255, 255, 0.88); /* Increased opacity for solid readability */
-  --glass-bg-glow: rgba(255, 255, 255, 0.96);
-  --glass-border: rgba(79, 70, 229, 0.28); /* Stronger indigo border */
-  --glass-glow-border: rgba(79, 70, 229, 0.42);
-  --glass-shadow: 0 8px 32px 0 rgba(79, 70, 229, 0.08);
-  --glass-glow-shadow: 0 10px 40px 0 rgba(79, 70, 229, 0.16);
+  --bg-animate-gradient: linear-gradient(-45deg, #fdfaf2, #f5eccd, #faebd7, #fffbf0); /* Extremely eye-friendly warm almond, cream & antique white canvas */
+  --glass-bg: rgba(254, 252, 246, 0.9); /* Frosted warm eggshell white */
+  --glass-bg-glow: rgba(255, 254, 250, 0.97);
+  --glass-border: rgba(146, 94, 25, 0.28); /* Warm bronze border */
+  --glass-glow-border: rgba(146, 94, 25, 0.44);
+  --glass-shadow: 0 8px 32px 0 rgba(146, 94, 25, 0.05);
+  --glass-glow-shadow: 0 10px 40px 0 rgba(146, 94, 25, 0.1);
   --glass-input-bg: rgba(255, 255, 255, 0.95);
-  --glass-input-border: rgba(79, 70, 229, 0.35); /* High contrast input border */
-  --text-primary: #0f172a; /* Slate 900 for absolute contrast */
-  --text-secondary: #334155; /* Slate 700 */
-  --text-muted: #475569; /* Slate 600 */
-  --border-muted: rgba(203, 213, 225, 0.95); /* Slate 300 */
-  --theme-switch-bg: rgba(226, 232, 240, 0.9);
+  --glass-input-border: rgba(146, 94, 25, 0.35); /* High-contrast warm input border */
+  --text-primary: #2d1e0f; /* Premium dark warm espresso for ultra high contrast without optical fatigue */
+  --text-secondary: #514030; /* Medium roast warm coffee */
+  --text-muted: #74614e; /* Muted soft brown */
+  --border-muted: rgba(215, 198, 172, 0.9); /* Gentle warm separator */
+  --theme-switch-bg: rgba(235, 222, 200, 0.9);
 }
 
 
@@ -112,7 +112,7 @@
 }
 
 .light .text-gradient {
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 60%, #1e1b4b 100%);
+  background: linear-gradient(135deg, #b45309 0%, #d97706 60%, #451a03 100%); /* Elegant warm sunset/mahogany gradient */
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
