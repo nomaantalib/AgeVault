@@ -3,23 +3,23 @@
 <div align="center">
   <img src="https://img.shields.io/badge/Aesthetics-Glassmorphism-6366f1?style=for-the-badge&logo=css3" alt="Aesthetics Glassmorphism" />
   <img src="https://img.shields.io/badge/AI_Face_Screening-40%25_Likeness-emerald?style=for-the-badge&logo=tensorflow" alt="AI Match Score" />
-  <img src="https://img.shields.io/badge/Authentication-Supabase_Magic_Link-3ecf8e?style=for-the-badge&logo=supabase" alt="Auth Supabase" />
+  <img src="https://img.shields.io/badge/Authentication-Resend_Email_OTP-FF69B4?style=for-the-badge&logo=auth0" alt="Auth Resend" />
   <img src="https://img.shields.io/badge/Database-MongoDB_Atlas-47a248?style=for-the-badge&logo=mongodb" alt="Database MongoDB" />
 </div>
 
 ---
 
 ## 🌟 Overview
-**AgeVault** is a state-of-the-art, beautifully crafted age verification and event access control system. It integrates dual-layer local OCR parsing, advanced local AI face-matching, secure QR pass generation, and role-based login capabilities. It was specifically built to serve premium nightlife and entertainment venues requiring strict 18+ gatekeeping verification with zero-friction entry.
+**AgeVault** is a state-of-the-art, premium age verification and access control platform designed for nightlife and entertainment venues requiring strict 18+ gatekeeping with frictionless entry. 
 
-The system is fully tenanted and optimized for 5 of the most exclusive clubs:
+Rather than relying on third-party identity providers, AgeVault processes all sensitive document analysis and face screening locally in the customer's browser, matching it with a secure database for verification.
+
+The platform is optimized for 5 of the most exclusive clubs:
 1. **The Palace Lounge**
 2. **Hype Nightclub**
 3. **Mirage Club & Garden**
 4. **Decibel Arena**
 5. **Vibe Superclub**
-
-Admins can toggle views dynamically, managing audits, manual CRUD controls, event scheduling, and database hygiene separately for each location or globally.
 
 ---
 
@@ -27,102 +27,61 @@ Admins can toggle views dynamically, managing audits, manual CRUD controls, even
 
 AgeVault employs a robust, modern monorepo layout separating frontend and backend operations cleanly:
 
-*   **Frontend UI/UX**:
-    *   **Vite + React**: Premium high-performance Single Page Application (SPA).
-    *   **Tailwind CSS + Vanilla Custom Glassmorphic Layers**: Seamless transition animations, glowing card borders, custom typewriter effects, and dynamic light/dark theme switching.
-    *   **Client-Side AI/ML**:
-        *   `@vladmandic/face-api`: In-browser facial detection and landmark matching (lowered to an optimized **40% sensitivity threshold** to prevent false rejections).
-        *   `tesseract.js`: High-accuracy optical character recognition (OCR) running locally in the user's browser to parse identity document Dates of Birth.
-    *   **Security & Auth**: Supabase Auth integration for secure credentials, metadata tracking, and magic-link authorization.
+### 1. Frontend UI/UX (Vite + React)
+*   **Vite + React SPA**: High-performance client-side Single Page Application.
+*   **Aesthetics (Nightclub Theme)**: Electric violet, pink neon accents, frosted glass cards (glassmorphism), animated background orbs, glowing inputs, and active-state animations.
+*   **Client-Side AI/ML**:
+    *   `@vladmandic/face-api`: High-performance in-browser facial recognition, verification, and likeness matching (configured with a robust **40% similarity threshold** for optimal matching in low-light environments).
+    *   `tesseract.js`: Browser-based OCR scanner that extracts and parses Dates of Birth from identity documents locally to respect user privacy.
+*   **Access Control**: Interactive QR code generator (`qrcode.react`) to present a secure, scanned pass upon verification.
 
-*   **Backend Services**:
-    *   **Express & Node.js**: Highly organized MVC REST API.
-    *   **Resend Integration**: Sends beautifully-styled, security verification codes (OTP) straight to email inboxes for secure auth validation.
-    *   **Storage Adapters**: Hybrid Cloudinary adapter for media upload & local compressed buffer engines.
-    *   **Mongoose ODM**: Handles database access, model validation, and daily data-hygiene routines.
-
----
-
-## 💾 Data Locations Guide — Which Database Has What Data?
-
-To help you monitor and verify database details, here is a step-by-step architectural breakdown of where user, auth, and image data is stored:
-
-### 1. 🟢 Supabase Auth Database (Decentralized Auth)
-*   **What is stored here**: User registration credentials, unique user identifiers (`UID`), signup metadata, and active JWT session tokens.
-*   **Data details**:
-    *   Supabase handles all secure authentication. When a user requests a magic link or creates a credentials account, it is logged and stored securely within Supabase's managed Postgres server.
-    *   Your local app references this using the `supabase.auth` client library to verify identity tokens, extract basic user attributes (`email`), and manage login sessions.
-*   **How to view it**: Access your project dashboard at [supabase.com](https://supabase.com). Under the **Authentication** tab, you will see a list of users, their signup times, last sign-in dates, and their unique IDs.
-
-### 2. 🟤 MongoDB Atlas (Application Database)
-*   **What is stored here**: Full user profiles, role-based records, event schedules, check-in logs, and verification metadata.
-*   **Data details**:
-    *   `users` collection: Stores user details mapped to their phone numbers, full names, calculated ages, parsed Dates of Birth (`dob`), active gate permissions (`role`: `'user'`, `'club'`, `'admin'`), audit statuses (`status`: `'pending'`, `'verified'`, `'rejected'`), assigned location (`club`), AI likeness match scores, and scan history.
-    *   `events` collection: Stores details of hosted events (`title`, `dateTime`, `venue`, `description`, `club`). To save space, past event descriptions are automatically compressed.
-    *   `otps` collection: Stores temporary 6-digit OTP codes and their expiration timestamps (10-minute expiry window) to authorize email checkins.
-*   **How to view it**: Access your database at [mongodb.com/atlas](https://mongodb.com/atlas). Open the **Database** cluster, click **Browse Collections**, and inspect the `users` and `events` documents.
-
-### 3. ☁️ Cloudinary & Local Storage (Media Storage)
-*   **What is stored here**: Uploaded Aadhaar, passport, or driver's license ID documents, and the captured live selfie screening photos.
-*   **Data details**:
-    *   To keep the MongoDB Atlas Free Tier database storage footprint lightweight, large images are **never** stored inside MongoDB.
-    *   Instead, images are uploaded directly to **Cloudinary** (or saved in a compressed format inside the `/uploads` directory on the server).
-    *   Only the secure, public HTTPS image URL strings (e.g., `idCardUrl` and `selfieUrl`) are saved inside the user's MongoDB profile.
-*   **How to view it**: Log in to your Cloudinary dashboard at [cloudinary.com](https://cloudinary.com) to view, organize, or delete the verified ID documents and selfies under your Media Library folders.
-
-### 4. 💻 Client Browser Local Storage
-*   **What is stored here**: Local session state and styling preferences.
-*   **Data details**:
-    *   `agevault_token`: The JWT session authorization token used to sign request headers sent to the backend.
-    *   `agevault_theme`: Active visual context (`'dark'` or `'light'`), enabling instant aesthetic toggle persistence across reloads.
-*   **How to view it**: Press `F12` in your browser to open DevTools, select **Application**, and look under **Local Storage**.
+### 2. Backend Services (Express + Node.js)
+*   **Express & Node.js REST API**: Backend server handling business logic, user profiles, event scheduling, and analytics.
+*   **MongoDB Atlas (Mongoose ODM)**: The single source of truth database holding user profiles, verification logs, scheduled events, and active OTP checkins.
+*   **Rotational Resend Mail Pool (Failover Core)**:
+    *   Integrates a pool of **7 Resend API key instances** loaded from environment variables (`RESEND_API_KEY_1` to `RESEND_API_KEY_7`).
+    *   Maintains a global tracker index. If an API key throws a quota or rate-limit error, the server immediately redirects to the next instance. This failover loop completely prevents site crashes during high-traffic authentication loads.
+*   **Security & Custom JWT**: Express generates and issues secure JWT tokens locally upon successful OTP matches, keeping all session signatures completely inside your database ecosystem.
 
 ---
 
-## 📈 System Data Flow Diagram
+## 💾 Data Locations Guide — Where is Data Stored?
 
-```mermaid
-graph TD
-    A[Client UI] -->|1. Sign Up & Magic Link| B(Supabase Auth)
-    A -->|2. Local OCR & AI Face Match| C{Client Engine}
-    C -->|3. Verification Images| D[Cloudinary / Server Uploads]
-    C -->|4. Profile Metadata & URLs| E[(MongoDB Atlas)]
-    A -->|5. Multi-Club Access Control| F[Admin Portal & Club Scanner]
-    F -->|6. Load Stats & Events| E
-    F -->|7. Wipe Collections & Download CSV| E
-```
+To monitor, audit, and verify database privacy, here is where user, auth, and image data is stored:
 
----
+### 1. 🟢 MongoDB Atlas (Application Database)
+*   **`users` collection**: Stores full member details, including phone numbers, emails, names, parsed Date of Birth (`dob`), computed ages, verification status (`pending`, `verified`, `rejected`), assigned target `club`, facial likeness scores, and generated QR keys.
+*   **`events` collection**: Stores venue event schedules (`title`, `dateTime`, `venue`, `description`, `club`), automatically compressing past logs to conserve space.
+*   **Temporary OTPs**: Verified 6-digit verification codes and 10-minute expiry timestamps are stored temporarily in the user's document for secure check-ins.
 
-## 🎨 Premium UI Aesthetics & Theme Switching
-
-AgeVault features a premium **Glassmorphism Design System** with visual enhancements for both themes:
-*   **Dark Mode**: Sleek obsidian canvas (`#090d16`), deep neon-indigo glows, frosted glass cards, and highly-stylized translucent inputs.
-*   **Light Mode (Enhanced Contrast)**: Solid, high-contrast, frosted panels (`rgba(255, 255, 255, 0.88)`), clear border definitions (`rgba(79, 70, 229, 0.28)`), and slate-900 typography. This guarantees 100% legibility in bright environments while keeping the premium glassmorphic feel.
-*   **Animations**: Elegant fading transitions, scale-up modals, scanner lasers, and dynamic custom typewriter text titles.
+### 2. ☁️ Media Uploads (Cloudinary & Local Storage)
+To keep the MongoDB Atlas Free Tier database footprint lightweight:
+*   Large images (ID documents, selfie captures) are **never** stored inside MongoDB.
+*   Instead, images are uploaded directly to **Cloudinary** (or saved in a compressed format inside the `/uploads` directory on the server).
+*   Only the secure, public HTTPS image URL strings (e.g., `idCardUrl` and `selfieUrl`) are saved inside the user's MongoDB profile.
 
 ---
 
 ## 🚀 Setup & Installation Guide
 
-Follow these steps to spin up the entire application locally:
+Follow these steps to run the application locally:
 
-### 1. Prerequisites
-Ensure you have node.js (v16+) installed. Clone the repository and run:
+### 1. Install Dependencies
+Run from the root directory:
 ```bash
 npm run install-all
 ```
 This runs parallel package installations inside both the `frontend` and `backend` directories.
 
 ### 2. Model Weights Setup
-The client-side AI face recognition requires pre-trained model weights. Download them into the public directory by running:
+Download the pre-trained neural network weights for face detection:
 ```bash
 npm run download-models
 ```
 *This downloads the required SSD MobileNet, Face Landmark, and Face Recognition weights to `frontend/public/models` automatically.*
 
 ### 3. Environment Variables Config
-Create configuration files for the database connections:
+Create your local environment files:
 
 *   **Backend (`backend/.env`)**:
     ```env
@@ -132,27 +91,28 @@ Create configuration files for the database connections:
     CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
     CLOUDINARY_API_KEY=your_cloudinary_api_key
     CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-    RESEND_API_KEY=re_bSHxQUsB_B51eoYCJbQb5aGX4MYLXBTDg
+    
+    # Resend Failover Keys
+    RESEND_API_KEY_1=your_resend_api_key_1_here
+    RESEND_API_KEY_2=your_resend_api_key_2_here
+    RESEND_API_KEY_3=your_resend_api_key_3_here
+    RESEND_API_KEY_4=your_resend_api_key_4_here
+    RESEND_API_KEY_5=your_resend_api_key_5_here
+    RESEND_API_KEY_6=your_resend_api_key_6_here
+    RESEND_API_KEY_7=your_resend_api_key_7_here
+    
+    USE_SIMULATED_OTP=false
     ```
 
 *   **Frontend (`frontend/.env`)**:
     ```env
     VITE_API_URL=http://localhost:5000
-    VITE_SUPABASE_URL=https://your-supabase-project-url.supabase.co
-    VITE_SUPABASE_ANON_KEY=your_supabase_anon_public_key
     ```
 
 ### 4. Run Development Servers
 Start both servers simultaneously to test local changes:
 *   **Backend**: `cd backend && npm run dev` (Runs on port `5000`)
 *   **Frontend**: `cd frontend && npm run dev` (Runs on port `5173`)
-
-### 5. Production Compilation
-Verify code compilation and build bundle outputs using Vite:
-```bash
-npm run build-all
-```
-This will compile and package static assets into `frontend/dist` without warnings.
 
 ---
 
