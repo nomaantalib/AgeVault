@@ -45,15 +45,15 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   // Login handler
-  const login = async (firebaseToken, email, name) => {
+  const login = async (email, name, phone, role) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/verify-phone`, {
+      const response = await fetch(`${API_URL}/api/auth/supabase-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: firebaseToken, email, name }),
+        body: JSON.stringify({ email, name, phone, role }),
       });
 
       const data = await response.json();

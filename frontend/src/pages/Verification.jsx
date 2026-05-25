@@ -37,6 +37,65 @@ const Verification = () => {
     return age;
   };
 
+  const loadPdfJS = () => {
+    return new Promise((resolve, reject) => {
+      if (window.pdfjsLib) {
+        resolve(window.pdfjsLib);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error('Failed to load PDF.js engine.'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 1000;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          canvas.toBlob((blob) => {
+            const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' });
+            resolve({
+              file: compressed,
+              preview: canvas.toDataURL('image/jpeg', 0.5)
+            });
+          }, 'image/jpeg', 0.5);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleProceedToSelfie = () => {
     setError('');
     if (!dob) {
@@ -187,15 +246,56 @@ const Verification = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setIdCardFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setIdCardPreview(reader.result);
-    };
-    reader.readAsDataURL(file);
+    setOcrLoading(true);
+    setError('');
 
-    // Run OCR Text Recognition
-    runOCR(file);
+    try {
+      if (file.type === 'application/pdf') {
+        setLoadingMsg('Parsing Aadhaar PDF...');
+        const pdfjs = await loadPdfJS();
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          try {
+            const arrayBuffer = event.target.result;
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            canvas.toBlob(async (blob) => {
+              const compressedFile = new File([blob], 'aadhaar_id.jpg', { type: 'image/jpeg' });
+              setIdCardFile(compressedFile);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+              setIdCardPreview(dataUrl);
+              
+              runOCR(compressedFile);
+            }, 'image/jpeg', 0.5);
+          } catch (err) {
+            console.error('PDF page render error:', err);
+            setError('Failed to extract image from PDF. Please make sure the PDF is not password-protected.');
+            setOcrLoading(false);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        setLoadingMsg('Compressing image for storage...');
+        const compressedData = await compressImage(file);
+        setIdCardFile(compressedData.file);
+        setIdCardPreview(compressedData.preview);
+        
+        runOCR(compressedData.file);
+      }
+    } catch (err) {
+      console.error('File process error:', err);
+      setError('Failed to process file.');
+      setOcrLoading(false);
+    }
   };
 
   // Turn on Webcam for step 2
@@ -280,11 +380,11 @@ const Verification = () => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Save image blob and URL preview
+    // Save image blob and URL preview with 50% compression quality
     canvas.toBlob(async (blob) => {
       const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
       setSelfieFile(file);
-      const dataUrl = canvas.toDataURL('image/jpeg');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
       setSelfiePreview(dataUrl);
 
       // Stop video feed
@@ -292,21 +392,19 @@ const Verification = () => {
 
       // Run Face Match
       performFaceMatch(idCardPreview, dataUrl);
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 0.5);
   };
 
   // Fallback for upload of selfie in case camera doesn't work
-  const handleSelfieUpload = (e) => {
+  const handleSelfieUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setSelfieFile(file);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      setSelfiePreview(reader.result);
-      performFaceMatch(idCardPreview, reader.result);
-    };
-    reader.readAsDataURL(file);
+    setLoadingMsg('Compressing selfie for storage...');
+    const compressedData = await compressImage(file);
+    setSelfieFile(compressedData.file);
+    setSelfiePreview(compressedData.preview);
+    performFaceMatch(idCardPreview, compressedData.preview);
   };
 
   const handleSubmit = async (e) => {
@@ -429,8 +527,11 @@ const Verification = () => {
             <div className="text-center md:text-left">
               <h2 className="text-2xl font-bold text-white">Select and Upload Government ID</h2>
               <p className="text-sm text-slate-400 mt-1">
-                Please select your ID type and upload a clear, high-resolution front-facing image.
+                Please select your ID type and upload a clear, high-resolution front-facing image or PDF document.
               </p>
+              <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                Google ML Kit OCR Engine Active
+              </div>
             </div>
 
             {/* ID Type Selector */}
@@ -490,12 +591,12 @@ const Verification = () => {
               <div>
                 {!idCardPreview ? (
                   <label className="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer bg-slate-900/30 transition-all duration-300 min-h-[220px]">
-                    <Upload className="w-10 h-10 text-slate-500 mb-3 animate-bounce" />
-                    <span className="text-sm font-semibold text-slate-300">Upload {idType.toUpperCase()} Image</span>
-                    <span className="text-xs text-slate-500 mt-1">PNG, JPG or JPEG up to 10MB</span>
+                    <Upload className="w-10 h-10 text-indigo-500 mb-3 animate-bounce" />
+                    <span className="text-sm font-semibold text-slate-300">Upload {idType.toUpperCase()} (Image or PDF)</span>
+                    <span className="text-xs text-slate-500 mt-1">PNG, JPG, JPEG or PDF up to 10MB</span>
                     <input 
                       type="file" 
-                      accept="image/*" 
+                      accept="image/*,application/pdf" 
                       onChange={handleIdCardUpload} 
                       className="hidden" 
                     />
@@ -604,6 +705,9 @@ const Verification = () => {
               <p className="text-sm text-slate-400 mt-1">
                 We'll run real-time face matching to compare your live selfie face against your uploaded ID card.
               </p>
+              <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                Google MediaPipe & TFJS Face Matcher Active
+              </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6 items-center">

@@ -20,6 +20,86 @@ const calculateAge = (dobString) => {
   return age;
 };
 
+// Google Cloud Vision REST OCR Helper (100% Native NodeJS HTTPS)
+const fs = require('fs');
+const https = require('https');
+
+const runGoogleVisionOCR = (filePath) => {
+  return new Promise((resolve) => {
+    const apiKey = process.env.GOOGLE_VISION_API_KEY;
+    if (!apiKey) {
+      console.log('Google Vision API key missing. Skipping backend ML verification.');
+      return resolve(null);
+    }
+
+    try {
+      if (!fs.existsSync(filePath)) {
+        return resolve(null);
+      }
+      const imageBuffer = fs.readFileSync(filePath);
+      const base64Image = imageBuffer.toString('base64');
+
+      const requestData = JSON.stringify({
+        requests: [
+          {
+            image: {
+              content: base64Image
+            },
+            features: [
+              {
+                type: 'TEXT_DETECTION'
+              }
+            ]
+          }
+        ]
+      });
+
+      const options = {
+        hostname: 'vision.googleapis.com',
+        path: `/v1/images:annotate?key=${apiKey}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(requestData)
+        }
+      };
+
+      const req = https.request(options, (res) => {
+        let responseData = '';
+        res.on('data', (chunk) => {
+          responseData += chunk;
+        });
+
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(responseData);
+            const textAnnotations = parsed.responses?.[0]?.textAnnotations;
+            if (textAnnotations && textAnnotations.length > 0) {
+              resolve(textAnnotations[0].description);
+            } else {
+              resolve('');
+            }
+          } catch (e) {
+            console.error('Failed to parse Google Vision response:', e);
+            resolve('');
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        console.error('Google Vision request error:', e);
+        resolve('');
+      });
+
+      req.write(requestData);
+      req.end();
+    } catch (err) {
+      console.error('Google Vision file read error:', err);
+      resolve('');
+    }
+  });
+};
+
 // @route   POST api/verify/submit
 // @desc    Submit ID Card + Live Selfie for verification
 // @access  Private
@@ -42,6 +122,46 @@ router.post('/submit', protect, upload.fields([
 
     if (age < 18) {
       return res.status(400).json({ success: false, message: 'Access Denied: You must be 18 years or older to register.' });
+    }
+
+    // Google Cloud Vision OCR backend check (if API key is present)
+    const idCardLocalPath = req.files['idCard'][0].path;
+    const googleVisionText = await runGoogleVisionOCR(idCardLocalPath);
+
+    if (googleVisionText) {
+      console.log('Google Vision ML OCR extracted text successfully.');
+      // Attempt to extract and double-check DOB
+      const dobRegex = /\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g;
+      const matches = googleVisionText.match(dobRegex);
+      let dobParsed = '';
+      
+      if (matches && matches.length > 0) {
+        const parts = matches[0].split(/[\/\-]/);
+        if (parts[0].length === 4) {
+          dobParsed = matches[0];
+        } else {
+          dobParsed = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+
+      if (!dobParsed) {
+        const yobRegex = /(?:Year of Birth|YOB|Birth|Year)\s*:\s*(\d{4})/i;
+        const yobMatch = googleVisionText.match(yobRegex);
+        if (yobMatch && yobMatch[1]) {
+          dobParsed = `${yobMatch[1]}-01-01`;
+        }
+      }
+
+      if (dobParsed) {
+        const mlAge = calculateAge(dobParsed);
+        if (mlAge < 18) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Access Denied: Google ML Vision OCR verified that the DOB on this document (${dobParsed}) is underage.` 
+          });
+        }
+        console.log(`Google Vision verified DOB: ${dobParsed}, Age: ${mlAge}`);
+      }
     }
 
     // Upload files using the Cloudinary/Local adapter

@@ -1,27 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { auth, isFirebaseConfigured } from '../utils/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
-import { Shield, Phone, Key, Smartphone, Info, ToggleLeft, ToggleRight, Mail, User } from 'lucide-react';
+import { supabase, isSupabaseConfigured } from '../utils/supabase';
+import { Shield, Info, ToggleLeft, ToggleRight, Mail, User, Phone, CheckCircle, AlertTriangle, Key } from 'lucide-react';
 
 const Login = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [useSimulated, setUseSimulated] = useState(!isFirebaseConfigured);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [role, setRole] = useState('user'); // 'user', 'club', 'admin'
+  const [authMode, setAuthMode] = useState('register'); // 'register' or 'login'
+  const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
+  const [useSimulated, setUseSimulated] = useState(!isSupabaseConfigured);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState(null);
 
   const { login, user, apiUrl } = useAuth();
   const navigate = useNavigate();
-  const recaptchaVerifierRef = useRef(null);
-  const otpInputsRef = useRef([]);
   const [event, setEvent] = useState(null);
   const [isTooEarly, setIsTooEarly] = useState(false);
   const [daysBeforeEvent, setDaysBeforeEvent] = useState(0);
@@ -33,6 +29,43 @@ const Login = () => {
     }
   }, [user, navigate]);
 
+  // Listen for Supabase redirect / authentication hash
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
+        console.log('Supabase SIGNED_IN event triggered.');
+        const userMeta = session.user.user_metadata || {};
+        const email = session.user.email;
+        const name = userMeta.name || '';
+        const phone = userMeta.phone || '';
+        const role = userMeta.role || 'user';
+
+        setLoading(true);
+        setError('');
+        try {
+          const res = await login(email, name, phone, role);
+          setLoading(false);
+          if (res.success) {
+            // Sign out of Supabase session since we use our custom Node backend session
+            await supabase.auth.signOut();
+            navigate('/');
+          } else {
+            setError(res.message || 'Verification failed');
+          }
+        } catch (err) {
+          setError('Failed to log in after Supabase validation.');
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
+  }, [apiUrl]);
+
   // Fetch event details on mount
   useEffect(() => {
     const fetchEvent = async () => {
@@ -42,7 +75,6 @@ const Login = () => {
         if (data.success && data.event) {
           setEvent(data.event);
           
-          // Check if current date is more than 3 days prior to the event
           const eventDate = new Date(data.event.dateTime).getTime();
           const today = Date.now();
           const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
@@ -62,159 +94,101 @@ const Login = () => {
     fetchEvent();
   }, [apiUrl]);
 
-  // Countdown timer for OTP resend
-  useEffect(() => {
-    let timer;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
-  // Focus helper for OTP inputs
-  useEffect(() => {
-    if (isOtpSent && otpInputsRef.current[0]) {
-      otpInputsRef.current[0].focus();
-    }
-  }, [isOtpSent]);
-
-  const handlePhoneSubmit = async (e) => {
+  const handleMagicLinkSubmit = async (e) => {
     e.preventDefault();
-    if (!phoneNumber || phoneNumber.length < 10) {
-      setError('Please enter a valid phone number');
-      return;
-    }
-
-    setLoading(true);
     setError('');
     setInfoMsg('');
 
-    // Format phone with country code (defaults to +91 if not specified)
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-
-    if (useSimulated) {
-      // Simulated OTP Send
-      setTimeout(() => {
-        setIsOtpSent(true);
-        setCountdown(30);
-        setLoading(false);
-        setInfoMsg(`DEMO MODE: OTP sent to ${formattedPhone}. Enter 123456 to verify.`);
-      }, 1000);
-    } else {
-      // Real Firebase OTP Send
-      try {
-        if (!recaptchaVerifierRef.current) {
-          recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible',
-            callback: () => {
-              console.log('reCAPTCHA solved');
-            }
-          });
-        }
-
-        const appVerifier = recaptchaVerifierRef.current;
-        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-        setConfirmationResult(confirmation);
-        setIsOtpSent(true);
-        setCountdown(60);
-        setLoading(false);
-        setInfoMsg(`OTP successfully sent to ${formattedPhone}`);
-      } catch (err) {
-        console.error('Firebase Auth SMS Send Error:', err);
-        setError(err.message || 'Failed to send SMS OTP. Falling back to Simulated OTP mode might help if keys are invalid.');
-        setLoading(false);
-        // Fallback option in case firebase initialization fails
-        if (!isFirebaseConfigured) {
-          setUseSimulated(true);
-        }
-      }
-    }
-  };
-
-  const handleOtpChange = (index, value) => {
-    if (isNaN(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value.substring(value.length - 1);
-    setOtp(newOtp);
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      otpInputsRef.current[index + 1].focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    // Backspace handling
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpInputsRef.current[index - 1].focus();
-    }
-  };
-
-  const handleOtpSubmit = async (e) => {
-    e.preventDefault();
-    const otpCode = otp.join('');
-    if (otpCode.length < 6) {
-      setError('Please enter the 6-digit verification code');
+    if (!email) {
+      setError('Please enter a valid email address');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    if (authMode === 'register') {
+      if (!name.trim()) {
+        setError('Full Name is required for registration');
+        return;
+      }
+      if (!phoneNumber || phoneNumber.length < 10) {
+        setError('Please enter a valid 10-digit phone number');
+        return;
+      }
+    }
 
-    const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+    const formattedPhone = phoneNumber ? (phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`) : '';
+
+    setLoading(true);
 
     if (useSimulated) {
-      // Simulated OTP Verify
-      setTimeout(async () => {
-        if (otpCode === '123456' || formattedPhone === '+919999999999' || formattedPhone === '+918888888888') {
-          const simulatedToken = `simulated-token-${formattedPhone}`;
-          const res = await login(simulatedToken, email, name);
-          setLoading(false);
-          if (res.success) {
-            navigate('/');
-          } else {
-            setError(res.message);
-          }
-        } else {
-          setError('Invalid OTP code. Please enter 123456.');
-          setLoading(false);
-        }
+      // Simulated Magic Link Flow
+      setTimeout(() => {
+        setIsMagicLinkSent(true);
+        setLoading(false);
+        setInfoMsg(`DEMO MODE: Magic link simulated for ${email}. Click the link below to instantly log in.`);
       }, 1000);
     } else {
-      // Real Firebase OTP Verify
+      // Real Supabase Magic Link Flow
       try {
-        const result = await confirmationResult.confirm(otpCode);
-        const idToken = await result.user.getIdToken();
-        const res = await login(idToken, email, name);
+        const { error: supabaseError } = await supabase.auth.signInWithOtp({
+          email: email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/login`,
+            data: {
+              name: name,
+              phone: formattedPhone,
+              role: role
+            }
+          }
+        });
+
         setLoading(false);
-        if (res.success) {
-          navigate('/');
+        if (supabaseError) {
+          setError(supabaseError.message);
         } else {
-          setError(res.message);
+          setIsMagicLinkSent(true);
+          setInfoMsg(`A secure magic link has been emailed to ${email}. Please check your inbox (and spam) to complete verification.`);
         }
       } catch (err) {
-        console.error('Firebase Code Verification Error:', err);
-        setError('Invalid OTP code. Please try again.');
+        console.error('Supabase Magic Link Error:', err);
+        setError(err.message || 'Failed to send magic link. Falling back to Demo Mode might help.');
         setLoading(false);
       }
+    }
+  };
+
+  const handleSimulatedClick = async () => {
+    setLoading(true);
+    setError('');
+    
+    const formattedPhone = phoneNumber ? (phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`) : '';
+    
+    // Call backend directly with registration details
+    const res = await login(
+      email, 
+      authMode === 'register' ? name : '', 
+      authMode === 'register' ? formattedPhone : '', 
+      authMode === 'register' ? role : 'user'
+    );
+    setLoading(false);
+    
+    if (res.success) {
+      navigate('/');
+    } else {
+      setError(res.message || 'Simulated login failed. Check backend connections.');
     }
   };
 
   return (
     <div className="w-full max-w-4xl">
-      {/* Firebase hidden reCAPTCHA */}
-      <div id="recaptcha-container"></div>
-
       <div className="grid md:grid-cols-2 gap-8 items-stretch">
         
         {/* Left Column: Event Advertisement & Rules */}
         {event ? (
           <div className="glass-panel-glow rounded-3xl p-6 md:p-8 flex flex-col justify-between border-indigo-500/25 relative overflow-hidden min-h-[350px]">
-            {/* Background design elements */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
             <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
 
-            <div className="relative z-10">
+            <div className="relative z-10 text-left">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider mb-6">
                 Featured Upcoming Event
               </div>
@@ -249,7 +223,7 @@ const Login = () => {
             </div>
 
             {/* Registration warning/instruction */}
-            <div className="mt-6 pt-4 border-t border-slate-900/80 relative z-10">
+            <div className="mt-6 pt-4 border-t border-slate-900/80 relative z-10 text-left">
               <div className={`p-4 rounded-xl border flex items-start gap-2.5 leading-relaxed text-xs ${
                 isTooEarly 
                   ? 'bg-amber-500/5 border-amber-500/30 text-amber-300' 
@@ -283,9 +257,10 @@ const Login = () => {
         )}
 
         {/* Right Column: Login Card */}
-        <div className="glass-panel-glow rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center border-slate-800">
+        <div className="glass-panel-glow rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center border-slate-800 text-left">
+          
           {/* Toggle Mode Button */}
-          {isFirebaseConfigured && (
+          {isSupabaseConfigured && (
             <button 
               type="button"
               onClick={() => setUseSimulated(!useSimulated)}
@@ -294,201 +269,242 @@ const Login = () => {
               {useSimulated ? (
                 <>
                   <ToggleRight className="w-4 h-4 text-indigo-400" />
-                  Demo Mode Active
+                  Demo Mode
                 </>
               ) : (
                 <>
                   <ToggleLeft className="w-4 h-4 text-slate-500" />
-                  Live Mode (Firebase)
+                  Live (Supabase)
                 </>
               )}
             </button>
           )}
 
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 mb-4 animate-pulse">
-              <Shield className="w-8 h-8 text-white" />
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 mb-3">
+              <Shield className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-white font-sans text-center">
+            <h2 className="text-2xl font-extrabold tracking-tight text-white font-sans text-center">
               AgeVault
             </h2>
-            <p className="text-sm text-slate-400 mt-2 text-center">
-              Club entry verification system
+            <p className="text-xs text-slate-400 mt-1 text-center">
+              Secure Magic Link Access System
             </p>
           </div>
 
+          {/* Form AuthMode Toggle Tabs */}
+          {!isMagicLinkSent && (
+            <div className="flex bg-slate-900/60 p-1 rounded-xl border border-slate-850 mb-5">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('register'); setError(''); }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 ${authMode === 'register' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+              >
+                Register / Sign Up
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('login'); setError(''); }}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 ${authMode === 'login' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+              >
+                Sign In / Log In
+              </button>
+            </div>
+          )}
+
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl flex items-start gap-2">
+            <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl flex items-start gap-2">
               <span className="font-bold">Error:</span> {error}
             </div>
           )}
 
           {infoMsg && (
-            <div className="mb-6 p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-xs rounded-xl flex items-start gap-2">
-              <Info className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-              <span>{infoMsg}</span>
-            </div>
-          )}
-
-          {isTooEarly && !isOtpSent && (
-            <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs rounded-xl flex items-start gap-2">
-              <Info className="w-4.5 h-4.5 text-amber-400 flex-shrink-0" />
-              <span>
-                <strong>Notice:</strong> You can register, but please remember the club's policy to register only within 3 days of the event.
-              </span>
-            </div>
-          )}
-
-          {!isOtpSent ? (
-            <form onSubmit={handlePhoneSubmit} className="space-y-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Full Name (Optional)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <User className="w-5 h-5" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Enter full name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={loading}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input text-white text-base tracking-wide"
-                  />
-                </div>
+            <div className="mb-5 p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-xs rounded-xl flex flex-col gap-2">
+              <div className="flex items-start gap-2">
+                <Info className="w-4.5 h-4.5 text-indigo-400 flex-shrink-0" />
+                <span>{infoMsg}</span>
               </div>
+              
+              {/* Simulated link clicker for Demo/Simulated OTP mode */}
+              {useSimulated && (
+                <button
+                  type="button"
+                  onClick={handleSimulatedClick}
+                  disabled={loading}
+                  className="mt-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg transition flex items-center justify-center gap-1"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  Instantly Simulate Clicking Magic Link
+                </button>
+              )}
+            </div>
+          )}
 
+          {!isMagicLinkSent ? (
+            <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
+              
+              {/* Name (Registration Only) */}
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Full Name <span className="text-indigo-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <User className="w-4.5 h-4.5" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      disabled={loading}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-white text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Email Address */}
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Email Address (Optional)
+                  Email Address
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Mail className="w-5 h-5" />
+                    <Mail className="w-4.5 h-4.5" />
                   </div>
                   <input
                     type="email"
-                    placeholder="Enter email address"
+                    required
+                    placeholder="name@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input text-white text-base tracking-wide"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-white text-sm"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Mobile Phone Number
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Phone className="w-5 h-5" />
+              {/* Phone Number (Registration Only) */}
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Mobile Phone Number <span className="text-indigo-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <Phone className="w-4.5 h-4.5" />
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="Enter 10-digit mobile number"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                      disabled={loading}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-white text-sm"
+                    />
                   </div>
-                  <input
-                    type="tel"
-                    placeholder="Enter 10-digit mobile number"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                    disabled={loading}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input text-white text-base tracking-wide"
-                  />
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1.5">
-                  Include country code (e.g. +91) if outside India. Defaults to +91.
-                </p>
-              </div>
+              )}
+
+              {/* Role Selection (Registration Only) */}
+              {authMode === 'register' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Select Account Role
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRole('user')}
+                      className={`py-2 rounded-xl border text-[10px] font-bold transition duration-300 ${
+                        role === 'user'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg'
+                          : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      Member
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('club')}
+                      className={`py-2 rounded-xl border text-[10px] font-bold transition duration-300 ${
+                        role === 'club'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg'
+                          : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      Club Staff
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('admin')}
+                      className={`py-2 rounded-xl border text-[10px] font-bold transition duration-300 ${
+                        role === 'admin'
+                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg'
+                          : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      Admin
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-sm transition-all duration-300 shadow-md shadow-indigo-600/20 flex justify-center items-center gap-2"
+                className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-xs transition-all duration-300 shadow-md shadow-indigo-600/20 flex justify-center items-center gap-1.5"
               >
                 {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
                 ) : (
                   <>
-                    <Smartphone className="w-4 h-4" />
-                    Send Verification SMS
+                    <Mail className="w-4 h-4" />
+                    Send Magic Login Link
                   </>
                 )}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleOtpSubmit} className="space-y-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 text-center">
-                  Enter 6-Digit OTP Code
-                </label>
-                
-                <div className="flex justify-between gap-2 max-w-xs mx-auto">
-                  {otp.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      type="text"
-                      maxLength={1}
-                      value={digit}
-                      ref={(el) => (otpInputsRef.current[idx] = el)}
-                      onChange={(e) => handleOtpChange(idx, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                      disabled={loading}
-                      className="w-12 h-14 text-center rounded-xl glass-input text-xl font-bold text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    />
-                  ))}
-                </div>
-              </div>
-
+            <div className="space-y-4 text-center py-6 animate-fade-in">
+              <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2 animate-bounce" />
+              <h3 className="text-lg font-bold text-white">Check Your Inbox</h3>
+              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">
+                We've sent a secure authentication link to <strong>{email}</strong>. Click the link in the email to automatically log in.
+              </p>
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-sm transition-all duration-300 shadow-md shadow-indigo-600/20 flex justify-center items-center gap-2"
+                onClick={() => { setIsMagicLinkSent(false); setInfoMsg(''); }}
+                className="text-xs text-indigo-400 hover:text-indigo-300 transition mt-2 block mx-auto"
               >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    <Key className="w-4 h-4" />
-                    Verify OTP & Log In
-                  </>
-                )}
+                Back to sign in page
               </button>
-
-              <div className="text-center">
-                <button
-                  type="button"
-                  disabled={countdown > 0 || loading}
-                  onClick={handlePhoneSubmit}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 disabled:text-slate-600 transition"
-                >
-                  {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP Code'}
-                </button>
-              </div>
-            </form>
+            </div>
           )}
 
-          {/* Demo Account Reference Card */}
-          <div className="mt-8 pt-6 border-t border-slate-850">
-            <div className="bg-slate-900/50 rounded-xl p-3.5 border border-slate-800 flex flex-col gap-2 text-[11px] text-slate-400">
-              <div className="flex items-center gap-1.5 text-indigo-400 font-semibold uppercase tracking-wider text-[10px]">
-                <Info className="w-3.5 h-3.5" />
-                Demo Accounts (Use simulated OTP 123456)
+          {/* Quick Demo Credentials Footer */}
+          <div className="mt-6 pt-5 border-t border-slate-850">
+            <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-800 flex flex-col gap-2 text-[10px] text-slate-400">
+              <div className="flex items-center gap-1 text-indigo-400 font-semibold uppercase tracking-wider text-[9px]">
+                <Info className="w-3.5 h-3.5 text-indigo-400" />
+                Demo Credentials (Simulated Magic Link)
               </div>
-              <div className="flex justify-between items-center bg-slate-950/40 p-1.5 rounded border border-slate-900">
-                <span>Admin Profile:</span>
-                <code className="text-white font-mono font-bold">+919999999999</code>
-              </div>
-              <div className="flex justify-between items-center bg-slate-950/40 p-1.5 rounded border border-slate-900">
-                <span>Club Staff Scanner:</span>
-                <code className="text-white font-mono font-bold">+918888888888</code>
-              </div>
-              <div className="flex justify-between items-center bg-slate-950/40 p-1.5 rounded border border-slate-900">
-                <span>Standard User:</span>
-                <code className="text-white font-mono font-bold">+919000000000</code>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
+                  <span className="text-slate-500 block">Admin:</span>
+                  <code className="text-white font-mono font-semibold">admin@agevault.com</code>
+                </div>
+                <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
+                  <span className="text-slate-500 block">Club Staff:</span>
+                  <code className="text-white font-mono font-semibold">staff@agevault.com</code>
+                </div>
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
