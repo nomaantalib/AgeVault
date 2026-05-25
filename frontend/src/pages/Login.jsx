@@ -133,37 +133,40 @@ const Login = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl">
-      <div className="grid md:grid-cols-2 gap-8 items-stretch">
-        
-        {/* Left Column: Event Advertisement & Rules */}
+    <div className="w-full max-w-4xl relative z-10">
+      <div className="grid md:grid-cols-2 gap-6 items-stretch">
+
+        {/* Left Column: Event Info */}
         {event ? (
-          <div className="glass-panel-glow rounded-3xl p-6 md:p-8 flex flex-col justify-between border-indigo-500/25 relative overflow-hidden min-h-[350px]">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
+          <div className="glass-panel-glow club-shine rounded-3xl p-6 md:p-8 flex flex-col justify-between relative overflow-hidden min-h-[380px]">
+            {/* Neon orb accents */}
+            <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-violet-600/20 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-10 w-52 h-52 rounded-full bg-pink-600/15 blur-3xl pointer-events-none" />
 
             <div className="relative z-10 text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider mb-6">
-                Featured Upcoming Event
+              {/* Club badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 neon-badge rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-6">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping inline-block" />
+                Featured Event
               </div>
 
-              <h3 className="text-2xl font-extrabold text-white leading-tight mb-3 font-sans">
+              <h3 className="text-2xl font-extrabold leading-tight mb-3 text-gradient">
                 {event.title}
               </h3>
-              
-              <p className="text-xs text-slate-300 leading-relaxed mb-6">
-                {event.description || 'Join us for an exclusive night! Verify your age pass now for seamless, fast-track entry.'}
+
+              <p className="text-xs leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>
+                {event.description || 'Join us for an exclusive night out! Verify your age pass now for seamless, fast-track VIP entry.'}
               </p>
 
-              {/* Event details schedule */}
-              <div className="space-y-3 text-xs bg-slate-950/40 p-4 rounded-2xl border border-slate-900/60">
-                <div className="flex justify-between items-center py-1.5 border-b border-slate-900/60">
-                  <span className="text-slate-500">Venue / Location:</span>
-                  <span className="text-white font-semibold">{event.venue}</span>
+              {/* Event details */}
+              <div className="space-y-0 text-xs rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-muted)', background: 'var(--glass-input-bg)' }}>
+                <div className="flex justify-between items-center px-4 py-3 border-b" style={{ borderColor: 'var(--border-muted)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>📍 Venue</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{event.venue}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-slate-500">Date & Time:</span>
-                  <span className="text-indigo-400 font-bold font-mono">
+                <div className="flex justify-between items-center px-4 py-3">
+                  <span style={{ color: 'var(--text-muted)' }}>🕐 Date & Time</span>
+                  <span className="font-bold font-mono text-violet-400">
                     {new Date(event.dateTime).toLocaleString('en-US', {
                       weekday: 'short',
                       month: 'short',
@@ -176,24 +179,24 @@ const Login = () => {
               </div>
             </div>
 
-            {/* Registration warning/instruction */}
-            <div className="mt-6 pt-4 border-t border-slate-900/80 relative z-10 text-left">
-              <div className={`p-4 rounded-xl border flex items-start gap-2.5 leading-relaxed text-xs ${
-                isTooEarly 
-                  ? 'bg-amber-500/5 border-amber-500/30 text-amber-300' 
-                  : 'bg-emerald-500/5 border-emerald-500/30 text-emerald-300'
+            {/* Registration window notice */}
+            <div className="mt-6 pt-5 border-t relative z-10 text-left" style={{ borderColor: 'var(--border-muted)' }}>
+              <div className={`p-4 rounded-2xl border flex items-start gap-2.5 leading-relaxed text-xs ${
+                isTooEarly
+                  ? 'bg-amber-500/8 border-amber-500/30 text-amber-300'
+                  : 'bg-emerald-500/8 border-emerald-500/30 text-emerald-300'
               }`}>
-                <Info className={`w-4.5 h-4.5 flex-shrink-0 mt-0.5 ${isTooEarly ? 'text-amber-400' : 'text-emerald-400'}`} />
+                <Info className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isTooEarly ? 'text-amber-400' : 'text-emerald-400'}`} />
                 <div>
                   <span className="font-bold block mb-1">Registration Rules:</span>
                   Please do not register more than 3 days in advance of the event.
                   {isTooEarly ? (
-                    <span className="block mt-1.5 font-semibold text-[10px] text-amber-500 animate-pulse">
-                      Warning: Event is {daysBeforeEvent} days away. Please return and register within 3 days of the event.
+                    <span className="block mt-1.5 font-semibold text-[10px] text-amber-400 animate-pulse">
+                      ⚠ Event is {daysBeforeEvent} days away. Return closer to the event date.
                     </span>
                   ) : (
                     <span className="block mt-1.5 font-semibold text-[10px] text-emerald-400">
-                      Registration is OPEN! You are within the 3-day window.
+                      ✓ Registration is OPEN — you're within the 3-day window!
                     </span>
                   )}
                 </div>
@@ -201,175 +204,180 @@ const Login = () => {
             </div>
           </div>
         ) : (
-          <div className="glass-panel rounded-3xl p-8 flex flex-col justify-center items-center border-slate-800/80 min-h-[350px] text-center">
-            <Shield className="w-12 h-12 text-slate-700 mb-4 animate-pulse" />
-            <h3 className="text-lg font-bold text-slate-400 font-sans">No Event Scheduled</h3>
-            <p className="text-xs text-slate-500 mt-2 max-w-[220px] leading-relaxed">
-              There is currently no upcoming event hosted on the platform.
+          <div className="glass-panel rounded-3xl p-8 flex flex-col justify-center items-center min-h-[350px] text-center relative overflow-hidden">
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-violet-900/10 to-pink-900/10 pointer-events-none" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600/30 to-pink-600/20 border border-violet-500/20 flex items-center justify-center mb-5">
+              <Shield className="w-8 h-8 text-violet-400" />
+            </div>
+            <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>No Event Scheduled</h3>
+            <p className="text-xs leading-relaxed max-w-[200px]" style={{ color: 'var(--text-muted)' }}>
+              There is currently no upcoming event hosted on this platform.
             </p>
           </div>
         )}
 
-        {/* Right Column: Login Card */}
-        <div className="glass-panel-glow rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center border-slate-200 dark:border-slate-800/80 text-left">
-          
-          <div className="flex flex-col items-center mb-6">
-            <div className="w-14 h-14 bg-gradient-to-tr from-indigo-600 to-indigo-400 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 dark:shadow-indigo-500/10 mb-3">
-              <Shield className="w-7 h-7 text-white" />
+        {/* Right Column: Auth Card */}
+        <div className="glass-panel-glow club-shine rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center">
+          {/* Subtle top glow accent */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-violet-500/60 to-transparent" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-8 bg-violet-500/10 blur-xl pointer-events-none rounded-full" />
+
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-7">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-violet-500/30 mb-3 neon-pulse">
+              <Shield className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans text-center">
+            <h2 className="text-3xl font-black tracking-tight text-gradient mb-1">
               AgeVault
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-450 mt-1 text-center font-semibold">
-              Secure Email OTP Verification System
+            <p className="text-[11px] font-semibold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
+              Secure Age Verification
             </p>
           </div>
 
-          {/* Form AuthMode Toggle Tabs */}
+          {/* Auth mode tabs */}
           {!isOtpSent && (
-            <div className="flex bg-slate-900/60 p-1 rounded-xl border border-slate-850 mb-5">
+            <div className="flex p-1 rounded-2xl mb-6 border" style={{ background: 'var(--glass-input-bg)', borderColor: 'var(--glass-input-border)' }}>
               <button
                 type="button"
                 onClick={() => { setAuthMode('register'); setError(''); }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 ${authMode === 'register' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 ${
+                  authMode === 'register'
+                    ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-lg shadow-violet-500/25'
+                    : 'hover:text-white'
+                }`}
+                style={{ color: authMode !== 'register' ? 'var(--text-muted)' : undefined }}
               >
-                Register / Sign Up
+                Register
               </button>
               <button
                 type="button"
                 onClick={() => { setAuthMode('login'); setError(''); }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition duration-200 ${authMode === 'login' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 ${
+                  authMode === 'login'
+                    ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white shadow-lg shadow-violet-500/25'
+                    : 'hover:text-white'
+                }`}
+                style={{ color: authMode !== 'login' ? 'var(--text-muted)' : undefined }}
               >
-                Sign In / Log In
+                Sign In
               </button>
             </div>
           )}
 
+          {/* Error */}
           {error && (
-            <div className="mb-5 p-4 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl flex items-start gap-2">
-              <span className="font-bold">Error:</span> {error}
+            <div className="mb-5 p-3.5 bg-red-500/10 border border-red-500/25 text-red-300 text-xs rounded-xl flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
+          {/* Info */}
           {infoMsg && (
-            <div className="mb-5 p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-200 text-xs rounded-xl flex flex-col gap-2">
-              <div className="flex items-start gap-2">
-                <Info className="w-4.5 h-4.5 text-indigo-400 flex-shrink-0" />
-                <span>{infoMsg}</span>
-              </div>
+            <div className="mb-5 p-3.5 bg-violet-500/10 border border-violet-500/25 text-violet-200 text-xs rounded-xl flex items-start gap-2">
+              <Info className="w-4 h-4 text-violet-400 flex-shrink-0 mt-0.5" />
+              <span>{infoMsg}</span>
             </div>
           )}
 
+          {/* Form */}
           {!isOtpSent ? (
             <form onSubmit={handleSendOtp} className="space-y-4">
-              
-              {/* Name (Registration Only) */}
+
               {authMode === 'register' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Full Name <span className="text-indigo-400">*</span>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    Full Name <span className="text-violet-400">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <User className="w-4.5 h-4.5" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+                      <User className="w-4 h-4" />
                     </div>
                     <input
                       type="text"
                       required
-                      placeholder="Enter full name"
+                      placeholder="Enter your full name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       disabled={loading}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-white text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-sm"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Email Address */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   Email Address
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Mail className="w-4.5 h-4.5" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+                    <Mail className="w-4 h-4" />
                   </div>
                   <input
                     type="email"
                     required
-                    placeholder="name@email.com"
+                    placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-white text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-sm"
                   />
                 </div>
               </div>
 
-              {/* Phone Number (Registration Only) */}
               {authMode === 'register' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Mobile Phone Number <span className="text-indigo-400">*</span>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    Mobile Number <span className="text-violet-400">*</span>
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Phone className="w-4.5 h-4.5" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+                      <Phone className="w-4 h-4" />
                     </div>
                     <input
                       type="tel"
                       required
-                      placeholder="Enter 10-digit mobile number"
+                      placeholder="10-digit mobile number"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
                       disabled={loading}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-white text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-sm"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Role Selection (Registration Only) */}
               {authMode === 'register' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Select Account Role
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-muted)' }}>
+                    Account Role
                   </label>
                   <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRole('user')}
-                      className={`py-2 rounded-xl border text-[10px] font-bold transition duration-300 ${
-                        role === 'user'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg'
-                          : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      Member
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRole('club')}
-                      className={`py-2 rounded-xl border text-[10px] font-bold transition duration-300 ${
-                        role === 'club'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg'
-                          : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      Club Staff
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRole('admin')}
-                      className={`py-2 rounded-xl border text-[10px] font-bold transition duration-300 ${
-                        role === 'admin'
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-400 shadow-lg'
-                          : 'bg-slate-900/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
-                      }`}
-                    >
-                      Admin
-                    </button>
+                    {[
+                      { value: 'user', label: '🎟 Member' },
+                      { value: 'club', label: '🎭 Staff' },
+                      { value: 'admin', label: '👑 Admin' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setRole(value)}
+                        className={`py-2.5 rounded-xl border text-[10px] font-bold transition-all duration-300 ${
+                          role === value
+                            ? 'bg-gradient-to-br from-violet-600/30 to-pink-600/20 border-violet-500/60 text-violet-300 shadow-lg shadow-violet-500/15'
+                            : 'border-opacity-30 hover:border-violet-500/40'
+                        }`}
+                        style={{
+                          borderColor: role === value ? undefined : 'var(--glass-input-border)',
+                          color: role === value ? undefined : 'var(--text-muted)',
+                          background: role === value ? undefined : 'var(--glass-input-bg)',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -377,53 +385,57 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-xs transition-all duration-300 shadow-md shadow-indigo-600/20 flex justify-center items-center gap-1.5"
+                className="w-full py-3.5 rounded-xl btn-neon text-sm tracking-wide flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
                     <Mail className="w-4 h-4" />
-                    Send Verification OTP Code
+                    Send Verification Code
                   </>
                 )}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4 animate-fade-in text-center">
-              <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2 animate-bounce" />
-              <h3 className="text-lg font-bold text-white">Enter Verification Code</h3>
-              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed mb-4">
-                We've sent a 6-digit security verification code to <strong>{email}</strong>. Please enter it below to authorize.
-              </p>
-              
+            <form onSubmit={handleVerifyOtp} className="space-y-5 animate-fade-in text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600/30 to-teal-600/20 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                <CheckCircle className="w-8 h-8 text-emerald-400" />
+              </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 text-left">
-                  6-Digit OTP Security Code
+                <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Check Your Email</h3>
+                <p className="text-xs leading-relaxed max-w-[280px] mx-auto" style={{ color: 'var(--text-muted)' }}>
+                  A 6-digit security code was sent to <strong className="text-violet-400">{email}</strong>
+                </p>
+              </div>
+
+              <div className="text-left">
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>
+                  OTP Code
                 </label>
                 <input
                   type="text"
                   required
                   maxLength={6}
-                  placeholder="------"
+                  placeholder="• • • • • •"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                   disabled={loading}
-                  className="w-full text-center tracking-[12px] font-mono py-3 rounded-xl glass-input text-white text-lg font-bold"
+                  className="w-full text-center tracking-[14px] font-mono py-3.5 rounded-xl glass-input text-xl font-black"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading || otpCode.length < 6}
-                className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-xs transition-all duration-300 shadow-md shadow-indigo-600/20 flex justify-center items-center gap-1.5"
+                className="w-full py-3.5 rounded-xl btn-neon text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
                     <Key className="w-4 h-4" />
-                    Verify & Access AgeVault
+                    Verify & Enter AgeVault
                   </>
                 )}
               </button>
@@ -431,33 +443,33 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => { setIsOtpSent(false); setError(''); setInfoMsg(''); setOtpCode(''); }}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition mt-4 block mx-auto font-medium"
+                className="text-xs font-medium transition hover:text-violet-300"
+                style={{ color: 'var(--text-muted)' }}
               >
-                Back to sign in page
+                ← Back to sign in
               </button>
             </form>
           )}
 
-          {/* Quick Demo Credentials Footer */}
-          <div className="mt-6 pt-5 border-t border-slate-850">
-            <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-800 flex flex-col gap-2 text-[10px] text-slate-400">
-              <div className="flex items-center gap-1 text-indigo-400 font-semibold uppercase tracking-wider text-[9px]">
-                <Info className="w-3.5 h-3.5 text-indigo-400" />
-                Demo Credentials (Simulated OTP Delivery)
+          {/* Demo credentials */}
+          <div className="mt-6 pt-5 border-t" style={{ borderColor: 'var(--border-muted)' }}>
+            <div className="rounded-2xl p-3 text-[10px] space-y-2" style={{ background: 'var(--glass-input-bg)', border: '1px solid var(--glass-input-border)' }}>
+              <div className="flex items-center gap-1.5 text-violet-400 font-bold uppercase tracking-widest text-[9px]">
+                <Info className="w-3 h-3" />
+                Demo Accounts
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
-                  <span className="text-slate-500 block">Admin:</span>
-                  <code className="text-white font-mono font-semibold">mohdnomaantalib@gmail.com</code>
+                <div className="rounded-xl p-2" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-muted)' }}>
+                  <span className="block mb-0.5" style={{ color: 'var(--text-muted)' }}>👑 Admin</span>
+                  <code className="font-mono font-bold text-violet-300 text-[9px]">mohdnomaantalib@gmail.com</code>
                 </div>
-                <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">
-                  <span className="text-slate-500 block">Club Staff:</span>
-                  <code className="text-white font-mono font-semibold">staff@agevault.com</code>
+                <div className="rounded-xl p-2" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-muted)' }}>
+                  <span className="block mb-0.5" style={{ color: 'var(--text-muted)' }}>🎭 Staff</span>
+                  <code className="font-mono font-bold text-violet-300 text-[9px]">staff@agevault.com</code>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -465,3 +477,4 @@ const Login = () => {
 };
 
 export default Login;
+
