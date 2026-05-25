@@ -5,26 +5,28 @@
 @layer base {
   body {
     @apply font-sans antialiased transition-colors duration-500;
+    color: var(--text-primary);
   }
 }
 
-/* Premium Light/Dark Theme Utilities */
+/* Premium Light/Dark Theme Utilities with Enhanced High Contrast */
 .light {
-  --bg-animate-gradient: linear-gradient(-45deg, #f5f3ff, #f8fafc, #e0e7ff, #faf5ff);
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-bg-glow: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(99, 102, 241, 0.15);
-  --glass-glow-border: rgba(99, 102, 241, 0.25);
-  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
-  --glass-glow-shadow: 0 10px 40px 0 rgba(99, 102, 241, 0.12);
-  --glass-input-bg: rgba(255, 255, 255, 0.75);
-  --glass-input-border: rgba(99, 102, 241, 0.2);
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --border-muted: rgba(226, 232, 240, 0.8);
-  --theme-switch-bg: rgba(241, 245, 249, 0.8);
+  --bg-animate-gradient: linear-gradient(-45deg, #eef2ff, #f8fafc, #e0e7ff, #f5f3ff);
+  --glass-bg: rgba(255, 255, 255, 0.88); /* Increased opacity for solid readability */
+  --glass-bg-glow: rgba(255, 255, 255, 0.96);
+  --glass-border: rgba(79, 70, 229, 0.28); /* Stronger indigo border */
+  --glass-glow-border: rgba(79, 70, 229, 0.42);
+  --glass-shadow: 0 8px 32px 0 rgba(79, 70, 229, 0.08);
+  --glass-glow-shadow: 0 10px 40px 0 rgba(79, 70, 229, 0.16);
+  --glass-input-bg: rgba(255, 255, 255, 0.95);
+  --glass-input-border: rgba(79, 70, 229, 0.35); /* High contrast input border */
+  --text-primary: #0f172a; /* Slate 900 for absolute contrast */
+  --text-secondary: #334155; /* Slate 700 */
+  --text-muted: #475569; /* Slate 600 */
+  --border-muted: rgba(203, 213, 225, 0.95); /* Slate 300 */
+  --theme-switch-bg: rgba(226, 232, 240, 0.9);
 }
+
 
 .dark {
   --bg-animate-gradient: linear-gradient(-45deg, #090d16, #030712, #141332, #020617);

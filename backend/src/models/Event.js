@@ -20,6 +20,11 @@ const EventSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  club: {
+    type: String,
+    enum: ['The Palace Lounge', 'Hype Nightclub', 'Mirage Club & Garden', 'Decibel Arena', 'Vibe Superclub'],
+    default: 'The Palace Lounge',
+  },
   createdAt: {
     type: Date,
     default: Date.now,

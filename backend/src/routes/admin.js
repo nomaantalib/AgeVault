@@ -118,7 +118,7 @@ router.get('/users', protect, adminOnly, async (req, res) => {
 // @desc    Create a user manually
 // @access  Private (Admin only)
 router.post('/users', protect, adminOnly, async (req, res) => {
-  const { phone, name, email, role, status, dob, age } = req.body;
+  const { phone, name, email, role, status, dob, age, club } = req.body;
   if (!phone) {
     return res.status(400).json({ success: false, message: 'Phone number is required' });
   }
@@ -135,6 +135,7 @@ router.post('/users', protect, adminOnly, async (req, res) => {
       status: status || 'pending',
       dob: dob ? new Date(dob) : undefined,
       age: age || undefined,
+      club: club || 'The Palace Lounge',
     });
     // Generate QR token if verified
     const jwtSecret = process.env.JWT_SECRET;
@@ -157,7 +158,7 @@ router.post('/users', protect, adminOnly, async (req, res) => {
 // @desc    Update a user manually
 // @access  Private (Admin only)
 router.put('/users/:id', protect, adminOnly, async (req, res) => {
-  const { phone, name, email, role, status, dob, age } = req.body;
+  const { phone, name, email, role, status, dob, age, club } = req.body;
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -168,6 +169,7 @@ router.put('/users/:id', protect, adminOnly, async (req, res) => {
     user.email = email !== undefined ? email : user.email;
     user.role = role || user.role;
     user.status = status || user.status;
+    user.club = club || user.club;
     if (dob) {
       user.dob = new Date(dob);
     }
@@ -272,7 +274,7 @@ router.get('/events', protect, adminOnly, async (req, res) => {
 // @desc    Create or update event (Admin only)
 // @access  Private (Admin only)
 router.post('/event', protect, adminOnly, async (req, res) => {
-  const { title, dateTime, venue, description } = req.body;
+  const { title, dateTime, venue, description, club } = req.body;
 
   if (!title || !dateTime || !venue) {
     return res.status(400).json({ success: false, message: 'Title, date/time, and venue are required.' });
@@ -283,7 +285,8 @@ router.post('/event', protect, adminOnly, async (req, res) => {
       title,
       dateTime: new Date(dateTime),
       venue,
-      description: description || ''
+      description: description || '',
+      club: club || 'The Palace Lounge'
     });
 
     await newEvent.save();
@@ -318,10 +321,17 @@ router.delete('/event/:id', protect, adminOnly, async (req, res) => {
 // @desc    Clear all user records (keeps admins and club staff)
 // @access  Private (Admin only)
 router.delete('/clear-history', protect, adminOnly, async (req, res) => {
+  const { club } = req.query;
   try {
-    // Delete only standard users (protect admins and clubs from being cleared!)
-    await User.deleteMany({ role: 'user' });
-    res.json({ success: true, message: 'All user verification history has been cleared successfully.' });
+    if (club && club !== 'All Clubs') {
+      // Clear standard users for a particular club
+      await User.deleteMany({ role: 'user', club });
+      res.json({ success: true, message: `Verification history for standard users at "${club}" has been cleared.` });
+    } else {
+      // Clear all standard users across all clubs
+      await User.deleteMany({ role: 'user' });
+      res.json({ success: true, message: 'Verification history for standard users across all 5 clubs has been cleared.' });
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

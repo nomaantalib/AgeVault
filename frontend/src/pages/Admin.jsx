@@ -6,11 +6,18 @@ import {
   Trash2, Edit, Plus, Smartphone, Mail, Calendar, Eye, Shield
 } from 'lucide-react';
 
+const CLUBS = ['The Palace Lounge', 'Hype Nightclub', 'Mirage Club & Garden', 'Decibel Arena', 'Vibe Superclub'];
+
 const Admin = () => {
   const { token, apiUrl } = useAuth();
   
   // Tabs: 'audits', 'users', 'event', 'database'
   const [activeTab, setActiveTab] = useState('audits');
+  
+  // Multi-club tenancy states
+  const [selectedClub, setSelectedClub] = useState('All Clubs');
+  const [userClub, setUserClub] = useState('The Palace Lounge');
+  const [eventClub, setEventClub] = useState('The Palace Lounge');
   
   // Dashboard stats
   const [stats, setStats] = useState({ total: 0, verified: 0, pending: 0, rejected: 0 });
@@ -50,7 +57,8 @@ const Admin = () => {
     role: 'user',
     status: 'pending',
     dob: '',
-    age: ''
+    age: '',
+    club: 'The Palace Lounge'
   });
   const [crudError, setCrudError] = useState('');
 
@@ -137,7 +145,8 @@ const Admin = () => {
           title: eventTitle,
           dateTime: eventDateTime,
           venue: eventVenue,
-          description: eventDescription
+          description: eventDescription,
+          club: eventClub
         })
       });
 
@@ -182,7 +191,31 @@ const Admin = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [apiUrl, token]);
+  }, []);
+
+  const filteredPendingQueue = selectedClub === 'All Clubs' 
+    ? pendingQueue 
+    : pendingQueue.filter(u => u.club === selectedClub);
+
+  const filteredAllUsers = selectedClub === 'All Clubs' 
+    ? allUsers 
+    : allUsers.filter(u => u.club === selectedClub);
+
+  const filteredAllEvents = selectedClub === 'All Clubs' 
+    ? allEvents 
+    : allEvents.filter(e => e.club === selectedClub);
+
+  // Dynamic stats calculation for the selected club!
+  const clubUsers = selectedClub === 'All Clubs' 
+    ? allUsers.filter(u => u.role === 'user') 
+    : allUsers.filter(u => u.role === 'user' && u.club === selectedClub);
+
+  const clubStats = {
+    total: clubUsers.length,
+    verified: clubUsers.filter(u => u.status === 'verified').length,
+    pending: clubUsers.filter(u => u.status === 'pending').length,
+    rejected: clubUsers.filter(u => u.status === 'rejected').length
+  };
 
   const handleAction = async (userId, action) => {
     setLoading(true);
@@ -272,15 +305,17 @@ const Admin = () => {
   const handleClearHistory = async () => {
     if (!hasExported) return;
     
-    const confirmClear = window.confirm(
-      'WARNING: This will permanently wipe all standard user profiles from the database to optimize space. Admin and Club Staff records will remain intact. Make sure you have downloaded the CSV export file. Proceed?'
-    );
+    const confirmMessage = selectedClub === 'All Clubs'
+      ? 'WARNING: This will permanently wipe all standard user profiles across ALL 5 clubs from the database. Make sure you have downloaded the CSV export. Proceed?'
+      : `WARNING: This will permanently wipe all standard user profiles registered at "${selectedClub}" from the database. Make sure you have downloaded the CSV export. Proceed?`;
+      
+    const confirmClear = window.confirm(confirmMessage);
 
     if (!confirmClear) return;
 
     setLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/api/admin/clear-history`, {
+      const response = await fetch(`${apiUrl}/api/admin/clear-history?club=${encodeURIComponent(selectedClub)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -312,7 +347,8 @@ const Admin = () => {
       role: 'user',
       status: 'pending',
       dob: '',
-      age: ''
+      age: '',
+      club: selectedClub !== 'All Clubs' ? selectedClub : 'The Palace Lounge'
     });
     setCrudError('');
     setShowUserModal(true);
@@ -328,7 +364,8 @@ const Admin = () => {
       role: user.role,
       status: user.status,
       dob: user.dob ? new Date(user.dob).toISOString().slice(0, 10) : '',
-      age: user.age || ''
+      age: user.age || '',
+      club: user.club || 'The Palace Lounge'
     });
     setCrudError('');
     setShowUserModal(true);
@@ -394,16 +431,36 @@ const Admin = () => {
     <div className="w-full max-w-6xl space-y-6">
       
       {/* Title block */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-850 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-indigo-400" />
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2 font-sans">
+            <ShieldCheck className="w-6 h-6 text-indigo-500" />
             Admin System Control
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Manage verifications, browse users directory, and handle daily database maintenance.
           </p>
         </div>
+
+        {/* Club Dropdown Selector */}
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Select Club:
+          </span>
+          <select
+            value={selectedClub}
+            onChange={(e) => setSelectedClub(e.target.value)}
+            className="px-3.5 py-2.5 rounded-xl glass-input text-slate-800 dark:text-white text-xs font-extrabold cursor-pointer focus:outline-none"
+          >
+            <option value="All Clubs" className="bg-slate-900 text-white font-bold">All 5 Clubs (Unified)</option>
+            {CLUBS.map((c) => (
+              <option key={c} value={c} className="bg-slate-900 text-white font-bold">
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
         
         {/* Responsive Tab Selector */}
         <div className="flex bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 self-start sm:self-center">
@@ -432,7 +489,6 @@ const Admin = () => {
             Database Operations
           </button>
         </div>
-      </div>
 
       {generalError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl text-center">
@@ -447,7 +503,7 @@ const Admin = () => {
             <span className="text-[10px] uppercase font-bold tracking-wider">Total Users</span>
             <Users className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl font-extrabold text-white">{stats.total}</div>
+          <div className="text-2xl font-extrabold text-white">{clubStats.total}</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border-slate-800/80">
@@ -455,7 +511,7 @@ const Admin = () => {
             <span className="text-[10px] uppercase font-bold tracking-wider">Verified Pass</span>
             <CheckCircle className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl font-extrabold text-emerald-400">{stats.verified}</div>
+          <div className="text-2xl font-extrabold text-emerald-400">{clubStats.verified}</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border-indigo-900/60 shadow-[0_0_15px_rgba(99,102,241,0.05)]">
@@ -463,7 +519,7 @@ const Admin = () => {
             <span className="text-[10px] uppercase font-bold tracking-wider">Pending Audit</span>
             <Clock className="w-4 h-4 text-indigo-400" />
           </div>
-          <div className="text-2xl font-extrabold text-indigo-400">{stats.pending}</div>
+          <div className="text-2xl font-extrabold text-indigo-400">{clubStats.pending}</div>
         </div>
 
         <div className="glass-panel rounded-2xl p-4 border-slate-800/80">
@@ -471,7 +527,7 @@ const Admin = () => {
             <span className="text-[10px] uppercase font-bold tracking-wider">Rejected Requests</span>
             <AlertTriangle className="w-4 h-4 text-rose-400" />
           </div>
-          <div className="text-2xl font-extrabold text-rose-400">{stats.rejected}</div>
+          <div className="text-2xl font-extrabold text-rose-400">{clubStats.rejected}</div>
         </div>
       </div>
 
@@ -483,19 +539,19 @@ const Admin = () => {
           {/* Audit Queue List */}
           <div className="glass-panel rounded-3xl p-5 border-slate-800/80 md:col-span-2 space-y-4 min-h-[300px]">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Pending Queue ({pendingQueue.length})</h2>
+              <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Pending Queue ({filteredPendingQueue.length})</h2>
               <button onClick={fetchDashboardData} className="text-slate-500 hover:text-white transition">
                 <RefreshCw className="w-3.5 h-3.5" />
               </button>
             </div>
             
-            {pendingQueue.length === 0 ? (
+            {filteredPendingQueue.length === 0 ? (
               <div className="text-center py-16 text-slate-500 text-xs italic">
                 Queue is empty. No pending audits.
               </div>
             ) : (
               <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
-                {pendingQueue.map((user) => (
+                {filteredPendingQueue.map((user) => (
                   <div
                     key={user._id}
                     onClick={() => handleUserSelect(user)}
@@ -506,7 +562,7 @@ const Admin = () => {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <span className="font-semibold text-slate-200 text-xs">{user.name || 'Anonymous User'}</span>
+                      <span className="font-semibold text-slate-205 text-xs">{user.name || 'Anonymous User'}</span>
                       <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/25 px-1.5 py-0.5 rounded-md uppercase font-mono">
                         {user.faceMatchConfidence}% Match
                       </span>
@@ -697,7 +753,7 @@ const Admin = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
-                {allUsers.map((user) => (
+                {filteredAllUsers.map((user) => (
                   <tr key={user._id} className="hover:bg-slate-900/20 text-slate-300">
                     <td className="py-3.5 px-2 font-mono text-slate-200">{user.phone}</td>
                     <td className="py-3.5 px-2 font-medium">{user.name || <span className="text-slate-600 italic">None</span>}</td>
@@ -797,7 +853,7 @@ const Admin = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     Date & Time
@@ -808,7 +864,7 @@ const Admin = () => {
                     value={eventDateTime}
                     onChange={(e) => setEventDateTime(e.target.value)}
                     disabled={eventLoading}
-                    className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none font-mono"
+                    className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none font-mono bg-dark-900"
                   />
                 </div>
 
@@ -825,6 +881,24 @@ const Admin = () => {
                     disabled={eventLoading}
                     className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Target Club
+                  </label>
+                  <select
+                    value={eventClub}
+                    onChange={(e) => setEventClub(e.target.value)}
+                    disabled={eventLoading}
+                    className="w-full px-3.5 py-3 rounded-xl glass-input text-slate-800 dark:text-white text-xs focus:outline-none bg-dark-900 font-extrabold cursor-pointer"
+                  >
+                    {CLUBS.map((c) => (
+                      <option key={c} value={c} className="bg-slate-900 text-white font-bold">
+                        {c}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -866,7 +940,7 @@ const Admin = () => {
           <div className="glass-panel rounded-3xl p-6 border-slate-800/80 space-y-4">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider text-left">
-                Event History & Schedule ({allEvents.length})
+                Event History & Schedule ({filteredAllEvents.length})
               </h2>
               <button 
                 type="button"
@@ -878,13 +952,13 @@ const Admin = () => {
               </button>
             </div>
             
-            {allEvents.length === 0 ? (
+            {filteredAllEvents.length === 0 ? (
               <div className="text-center py-16 text-slate-500 text-xs italic">
                 No events scheduled. Users will see standby mode on registration screen.
               </div>
             ) : (
               <div className="space-y-3.5 max-h-[550px] overflow-y-auto pr-1">
-                {allEvents.map((evt) => {
+                {filteredAllEvents.map((evt) => {
                   const isPast = new Date(evt.dateTime) < new Date();
                   return (
                     <div 
@@ -1121,33 +1195,49 @@ const Admin = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     System Role
                   </label>
                   <select
                     value={crudUser.role}
                     onChange={(e) => setCrudUser({ ...crudUser, role: e.target.value })}
-                    className="w-full px-2 py-2 text-xs rounded-lg glass-input text-white focus:outline-none bg-dark-900"
+                    className="w-full px-2 py-2 text-xs rounded-lg glass-input text-slate-800 dark:text-white focus:outline-none bg-dark-900"
                   >
-                    <option value="user">Standard User</option>
-                    <option value="club">Club Gate Staff</option>
-                    <option value="admin">System Admin</option>
+                    <option value="user" className="bg-slate-900 text-white font-semibold">Standard User</option>
+                    <option value="club" className="bg-slate-900 text-white font-semibold">Club Gate Staff</option>
+                    <option value="admin" className="bg-slate-900 text-white font-semibold">System Admin</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                     Status
                   </label>
                   <select
                     value={crudUser.status}
                     onChange={(e) => setCrudUser({ ...crudUser, status: e.target.value })}
-                    className="w-full px-2 py-2 text-xs rounded-lg glass-input text-white focus:outline-none bg-dark-900"
+                    className="w-full px-2 py-2 text-xs rounded-lg glass-input text-slate-800 dark:text-white focus:outline-none bg-dark-900"
                   >
-                    <option value="pending">Pending Audit</option>
-                    <option value="verified">Verified Pass</option>
-                    <option value="rejected">Rejected Pass</option>
+                    <option value="pending" className="bg-slate-900 text-white font-semibold">Pending Audit</option>
+                    <option value="verified" className="bg-slate-900 text-white font-semibold">Verified Pass</option>
+                    <option value="rejected" className="bg-slate-900 text-white font-semibold">Rejected Pass</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    Assigned Club
+                  </label>
+                  <select
+                    value={crudUser.club}
+                    onChange={(e) => setCrudUser({ ...crudUser, club: e.target.value })}
+                    className="w-full px-2 py-2 text-xs rounded-lg glass-input text-slate-800 dark:text-white focus:outline-none bg-dark-900 font-extrabold cursor-pointer"
+                  >
+                    {CLUBS.map((c) => (
+                      <option key={c} value={c} className="bg-slate-900 text-white font-bold">
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
