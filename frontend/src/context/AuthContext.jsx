@@ -44,7 +44,59 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, [token]);
 
-  // Login handler
+  // Send OTP handler (Resend integration)
+  const sendOtp = async (email, name, phone, role, authMode) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, name, phone, role, authMode }),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Send OTP failed:', error);
+      return { success: false, message: 'Server unreachable. Check if backend is running.' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP handler (Resend integration)
+  const verifyOtp = async (email, otp) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('agevault_token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, user: data.user };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (error) {
+      console.error('Verify OTP failed:', error);
+      return { success: false, message: 'Server unreachable. Check if backend is running.' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Login handler (Retained for legacy/direct backdoors if needed)
   const login = async (email, name, phone, role) => {
     setLoading(true);
     try {
@@ -100,7 +152,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout, refreshUser, apiUrl: API_URL }}>
+    <AuthContext.Provider value={{ user, token, loading, sendOtp, verifyOtp, login, logout, refreshUser, apiUrl: API_URL }}>
       {children}
     </AuthContext.Provider>
   );

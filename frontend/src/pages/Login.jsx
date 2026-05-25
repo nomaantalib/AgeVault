@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase, isSupabaseConfigured } from '../utils/supabase';
-import { Shield, Info, ToggleLeft, ToggleRight, Mail, User, Phone, CheckCircle, AlertTriangle, Key } from 'lucide-react';
+import { Shield, Info, Mail, User, Phone, CheckCircle, AlertTriangle, Key } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -10,13 +9,13 @@ const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [role, setRole] = useState('user'); // 'user', 'club', 'admin'
   const [authMode, setAuthMode] = useState('register'); // 'register' or 'login'
-  const [isMagicLinkSent, setIsMagicLinkSent] = useState(false);
-  const [useSimulated, setUseSimulated] = useState(!isSupabaseConfigured);
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [infoMsg, setInfoMsg] = useState('');
 
-  const { login, user, apiUrl } = useAuth();
+  const { sendOtp, verifyOtp, user, apiUrl } = useAuth();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
   const [isTooEarly, setIsTooEarly] = useState(false);
@@ -28,43 +27,6 @@ const Login = () => {
       navigate('/');
     }
   }, [user, navigate]);
-
-  // Listen for Supabase redirect / authentication hash
-  useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
-        console.log('Supabase SIGNED_IN event triggered.');
-        const userMeta = session.user.user_metadata || {};
-        const email = session.user.email;
-        const name = userMeta.name || '';
-        const phone = userMeta.phone || '';
-        const role = userMeta.role || 'user';
-
-        setLoading(true);
-        setError('');
-        try {
-          const res = await login(email, name, phone, role);
-          setLoading(false);
-          if (res.success) {
-            // Sign out of Supabase session since we use our custom Node backend session
-            await supabase.auth.signOut();
-            navigate('/');
-          } else {
-            setError(res.message || 'Verification failed');
-          }
-        } catch (err) {
-          setError('Failed to log in after Supabase validation.');
-          setLoading(false);
-        }
-      }
-    });
-
-    return () => {
-      if (subscription) subscription.unsubscribe();
-    };
-  }, [apiUrl]);
 
   // Fetch event details on mount
   useEffect(() => {
@@ -94,7 +56,7 @@ const Login = () => {
     fetchEvent();
   }, [apiUrl]);
 
-  const handleMagicLinkSubmit = async (e) => {
+  const handleSendOtp = async (e) => {
     e.preventDefault();
     setError('');
     setInfoMsg('');
@@ -115,66 +77,57 @@ const Login = () => {
       }
     }
 
-    const formattedPhone = phoneNumber ? (phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`) : '';
-
     setLoading(true);
 
-    if (useSimulated) {
-      // Simulated Magic Link Flow
-      setTimeout(() => {
-        setIsMagicLinkSent(true);
-        setLoading(false);
-        setInfoMsg(`DEMO MODE: Magic link simulated for ${email}. Click the link below to instantly log in.`);
-      }, 1000);
-    } else {
-      // Real Supabase Magic Link Flow
-      try {
-        const { error: supabaseError } = await supabase.auth.signInWithOtp({
-          email: email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/login`,
-            data: {
-              name: name,
-              phone: formattedPhone,
-              role: role
-            }
-          }
-        });
+    try {
+      const res = await sendOtp(email, name, phoneNumber, role, authMode);
+      setLoading(false);
 
-        setLoading(false);
-        if (supabaseError) {
-          setError(supabaseError.message);
+      if (res.success) {
+        setIsOtpSent(true);
+        if (res.otp) {
+          // Fallback / Demo Simulation
+          setInfoMsg(`DEMO MODE: An email security code ${res.otp} was simulated. Please input it below.`);
+          setOtpCode(res.otp);
         } else {
-          setIsMagicLinkSent(true);
-          setInfoMsg(`A secure magic link has been emailed to ${email}. Please check your inbox (and spam) to complete verification.`);
+          // Real Resend OTP
+          setInfoMsg(`A secure 6-digit security code has been sent via Resend to ${email}. Please check your inbox.`);
         }
-      } catch (err) {
-        console.error('Supabase Magic Link Error:', err);
-        setError(err.message || 'Failed to send magic link. Falling back to Demo Mode might help.');
-        setLoading(false);
+      } else {
+        setError(res.message || 'Failed to dispatch verification code');
       }
+    } catch (err) {
+      console.error('OTP Send Error:', err);
+      setError('Failed to contact authentication network.');
+      setLoading(false);
     }
   };
 
-  const handleSimulatedClick = async () => {
-    setLoading(true);
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
     setError('');
-    
-    const formattedPhone = phoneNumber ? (phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`) : '';
-    
-    // Call backend directly with registration details
-    const res = await login(
-      email, 
-      authMode === 'register' ? name : '', 
-      authMode === 'register' ? formattedPhone : '', 
-      authMode === 'register' ? role : 'user'
-    );
-    setLoading(false);
-    
-    if (res.success) {
-      navigate('/');
-    } else {
-      setError(res.message || 'Simulated login failed. Check backend connections.');
+    setInfoMsg('');
+
+    if (!otpCode || otpCode.length < 6) {
+      setError('Please enter the 6-digit code sent to your email');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await verifyOtp(email, otpCode);
+      setLoading(false);
+
+      if (res.success) {
+        navigate('/');
+      } else {
+        setError(res.message || 'Invalid or expired verification code');
+      }
+    } catch (err) {
+      console.error('OTP verification failed:', err);
+      setError('Network verification error.');
+      setLoading(false);
     }
   };
 
@@ -293,7 +246,7 @@ const Login = () => {
           </div>
 
           {/* Form AuthMode Toggle Tabs */}
-          {!isMagicLinkSent && (
+          {!isOtpSent && (
             <div className="flex bg-slate-900/60 p-1 rounded-xl border border-slate-850 mb-5">
               <button
                 type="button"
@@ -324,24 +277,11 @@ const Login = () => {
                 <Info className="w-4.5 h-4.5 text-indigo-400 flex-shrink-0" />
                 <span>{infoMsg}</span>
               </div>
-              
-              {/* Simulated link clicker for Demo/Simulated OTP mode */}
-              {useSimulated && (
-                <button
-                  type="button"
-                  onClick={handleSimulatedClick}
-                  disabled={loading}
-                  className="mt-2 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold rounded-lg transition flex items-center justify-center gap-1"
-                >
-                  <Key className="w-3.5 h-3.5" />
-                  Instantly Simulate Clicking Magic Link
-                </button>
-              )}
             </div>
           )}
 
-          {!isMagicLinkSent ? (
-            <form onSubmit={handleMagicLinkSubmit} className="space-y-4">
+          {!isOtpSent ? (
+            <form onSubmit={handleSendOtp} className="space-y-4">
               
               {/* Name (Registration Only) */}
               {authMode === 'register' && (
@@ -464,25 +404,58 @@ const Login = () => {
                 ) : (
                   <>
                     <Mail className="w-4 h-4" />
-                    Send Magic Login Link
+                    Send Verification OTP Code
                   </>
                 )}
               </button>
             </form>
           ) : (
-            <div className="space-y-4 text-center py-6 animate-fade-in">
+            <form onSubmit={handleVerifyOtp} className="space-y-4 animate-fade-in text-center">
               <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2 animate-bounce" />
-              <h3 className="text-lg font-bold text-white">Check Your Inbox</h3>
-              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed">
-                We've sent a secure authentication link to <strong>{email}</strong>. Click the link in the email to automatically log in.
+              <h3 className="text-lg font-bold text-white">Enter Verification Code</h3>
+              <p className="text-xs text-slate-400 max-w-[280px] mx-auto leading-relaxed mb-4">
+                We've sent a 6-digit security verification code to <strong>{email}</strong>. Please enter it below to authorize.
               </p>
+              
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 text-left">
+                  6-Digit OTP Security Code
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  placeholder="------"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  disabled={loading}
+                  className="w-full text-center tracking-[12px] font-mono py-3 rounded-xl glass-input text-white text-lg font-bold"
+                />
+              </div>
+
               <button
-                onClick={() => { setIsMagicLinkSent(false); setInfoMsg(''); }}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition mt-2 block mx-auto"
+                type="submit"
+                disabled={loading || otpCode.length < 6}
+                className="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white font-semibold text-xs transition-all duration-300 shadow-md shadow-indigo-600/20 flex justify-center items-center gap-1.5"
+              >
+                {loading ? (
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <Key className="w-4 h-4" />
+                    Verify & Access AgeVault
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIsOtpSent(false); setError(''); setInfoMsg(''); setOtpCode(''); }}
+                className="text-xs text-indigo-400 hover:text-indigo-300 transition mt-4 block mx-auto font-medium"
               >
                 Back to sign in page
               </button>
-            </div>
+            </form>
           )}
 
           {/* Quick Demo Credentials Footer */}
@@ -490,7 +463,7 @@ const Login = () => {
             <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-800 flex flex-col gap-2 text-[10px] text-slate-400">
               <div className="flex items-center gap-1 text-indigo-400 font-semibold uppercase tracking-wider text-[9px]">
                 <Info className="w-3.5 h-3.5 text-indigo-400" />
-                Demo Credentials (Simulated Magic Link)
+                Demo Credentials (Simulated OTP Delivery)
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-slate-950/40 p-1.5 rounded border border-slate-900">

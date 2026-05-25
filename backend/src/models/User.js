@@ -60,6 +60,13 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  otp: {
+    type: String,
+    default: '',
+  },
+  otpExpires: {
+    type: Date,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
