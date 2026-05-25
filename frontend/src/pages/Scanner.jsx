@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { 
   Scan, CheckCircle, XCircle, ShieldAlert, ArrowRight, 
-  Smartphone, User, Calendar, Award, Copy, Check 
+  Smartphone, User, Calendar, Award, Copy, Check, X 
 } from 'lucide-react';
 
 const Scanner = () => {
@@ -219,6 +219,31 @@ const Scanner = () => {
 
               {/* User Bio Details Panel */}
               <div className="bg-slate-950/40 border border-slate-850 rounded-2xl p-4 text-left text-xs text-slate-300 space-y-3">
+                {scanResult.user.selfieUrl && (
+                  <div className="flex justify-center mb-4 pb-4 border-b border-slate-905/60">
+                    <div className="relative">
+                      <img
+                        src={scanResult.user.selfieUrl}
+                        alt="Scanned User Selfie"
+                        className={`w-24 h-24 object-cover rounded-2xl border-2 shadow-md ${
+                          scanResult.verified 
+                            ? 'border-emerald-500/50 shadow-emerald-500/10' 
+                            : 'border-rose-500/50 shadow-rose-500/10'
+                        }`}
+                      />
+                      <div className={`absolute -bottom-1.5 -right-1.5 text-white rounded-full p-0.5 border border-slate-950 ${
+                        scanResult.verified ? 'bg-emerald-500' : 'bg-rose-500'
+                      }`}>
+                        {scanResult.verified ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center py-1 border-b border-slate-900">
                   <span className="text-slate-500 flex items-center gap-1">
                     <User className="w-3.5 h-3.5" /> Name:

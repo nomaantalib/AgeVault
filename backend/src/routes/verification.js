@@ -124,6 +124,16 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
     // Verify JWT
     const decoded = jwt.verify(qrToken, jwtSecret);
 
+    // Replay attack prevention: Ensure QR code was generated within the last 15 minutes
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const maxAge = 15 * 60; // 15 minutes
+    if (decoded.timestamp && (currentTimestamp - decoded.timestamp) > maxAge) {
+      return res.status(400).json({
+        success: false,
+        message: 'Security Alert: QR Code has expired. Ask the customer to refresh their dashboard.'
+      });
+    }
+
     // Fetch user from DB to verify status and prevent stale/revoked verification tokens
     const user = await User.findById(decoded.uid);
     
@@ -144,6 +154,7 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
           name: user.name,
           age: user.age,
           phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'), // Mask phone
+          selfieUrl: user.selfieUrl,
           faceMatchConfidence: user.faceMatchConfidence
         }
       });
@@ -158,6 +169,7 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
         name: user.name,
         age: user.age,
         phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'),
+        selfieUrl: user.selfieUrl,
         faceMatchConfidence: user.faceMatchConfidence,
         verifiedAt: user.createdAt
       }
