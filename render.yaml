@@ -13,3 +13,5 @@ services:
         generateValue: true
       - key: USE_SIMULATED_OTP
         value: "false"
+      - key: RESEND_API_KEY
+        sync: false

@@ -6,12 +6,12 @@ import {
   Trash2, Edit, Plus, Smartphone, Mail, Calendar, Eye, Shield
 } from 'lucide-react';
 
-const CLUBS = ['The Palace Lounge', 'Hype Nightclub', 'Mirage Club & Garden', 'Decibel Arena', 'Vibe Superclub'];
+const DEFAULT_CLUBS = ['The Palace Lounge', 'Hype Nightclub', 'Mirage Club & Garden', 'Decibel Arena', 'Vibe Superclub'];
 
 const Admin = () => {
   const { token, apiUrl } = useAuth();
   
-  // Tabs: 'audits', 'users', 'event', 'database'
+  // Tabs: 'audits', 'users', 'event', 'database', 'clubs'
   const [activeTab, setActiveTab] = useState('audits');
   
   // Multi-club tenancy states
@@ -19,6 +19,36 @@ const Admin = () => {
   const [userClub, setUserClub] = useState('The Palace Lounge');
   const [eventClub, setEventClub] = useState('The Palace Lounge');
   
+  // Dynamic venue states
+  const [clubs, setClubs] = useState([]);
+  const activeClubs = clubs.length > 0 ? clubs.map((c) => c.name) : DEFAULT_CLUBS;
+
+  // Sync default club options when clubs load
+  useEffect(() => {
+    if (clubs.length > 0) {
+      const firstClub = clubs[0].name;
+      setUserClub(firstClub);
+      setEventClub(firstClub);
+      setCrudUser(prev => ({ ...prev, club: firstClub }));
+    }
+  }, [clubs]);
+  const [clubsLoading, setClubsLoading] = useState(false);
+  const [showClubModal, setShowClubModal] = useState(false);
+  const [clubModalMode, setClubModalMode] = useState('create'); // 'create' or 'edit'
+  const [clubName, setClubName] = useState('');
+  const [editingClubId, setEditingClubId] = useState('');
+  const [clubError, setClubError] = useState('');
+  const [clubSuccess, setClubSuccess] = useState('');
+
+  // Admin destructive action OTP verification states
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpMessage, setOtpMessage] = useState('');
+  const [otpAction, setOtpAction] = useState(''); // 'clear-history' or 'delete-club'
+  const [otpTargetId, setOtpTargetId] = useState('');
+  const [adminOtpCode, setAdminOtpCode] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+
   // Dashboard stats
   const [stats, setStats] = useState({ total: 0, verified: 0, pending: 0, rejected: 0 });
   const [pendingQueue, setPendingQueue] = useState([]);
@@ -121,6 +151,15 @@ const Admin = () => {
       const allEventsData = await allEventsRes.json();
       if (allEventsData.success) {
         setAllEvents(allEventsData.events);
+      }
+
+      // 6. Fetch dynamic clubs
+      const clubsRes = await fetch(`${apiUrl}/api/admin/clubs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const clubsData = await clubsRes.json();
+      if (clubsData.success) {
+        setClubs(clubsData.clubs);
       }
     } catch (err) {
       console.error('Failed to fetch admin dashboard:', err);
@@ -304,20 +343,23 @@ const Admin = () => {
   };
 
   // Clear Daily History
-  const handleClearHistory = async () => {
+  const handleClearHistory = async (otpCodeVal = '') => {
     if (!hasExported) return;
     
-    const confirmMessage = selectedClub === 'All Clubs'
-      ? 'WARNING: This will permanently wipe all standard user profiles across ALL 5 clubs from the database. Make sure you have downloaded the CSV export. Proceed?'
-      : `WARNING: This will permanently wipe all standard user profiles registered at "${selectedClub}" from the database. Make sure you have downloaded the CSV export. Proceed?`;
-      
-    const confirmClear = window.confirm(confirmMessage);
-
-    if (!confirmClear) return;
+    // If not verifying with OTP yet, prompt confirmation first
+    if (!otpCodeVal) {
+      const confirmMessage = selectedClub === 'All Clubs'
+        ? 'WARNING: This will permanently wipe all standard user profiles across ALL clubs from the database. Make sure you have downloaded the CSV export. Proceed?'
+        : `WARNING: This will permanently wipe all standard user profiles registered at "${selectedClub}" from the database. Make sure you have downloaded the CSV export. Proceed?`;
+        
+      const confirmClear = window.confirm(confirmMessage);
+      if (!confirmClear) return;
+    }
 
     setLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/api/admin/clear-history?club=${encodeURIComponent(selectedClub)}`, {
+      const url = `${apiUrl}/api/admin/clear-history?club=${encodeURIComponent(selectedClub)}${otpCodeVal ? `&otp=${otpCodeVal}` : ''}`;
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -327,14 +369,165 @@ const Admin = () => {
       if (data.success) {
         setHasExported(false); // Relock the button
         alert(data.message);
+        setShowOtpModal(false);
+        setAdminOtpCode('');
         fetchDashboardData();
+      } else if (data.requiresOtp) {
+        setOtpAction('clear-history');
+        setOtpTargetId('');
+        setOtpMessage(data.message);
+        setOtpError('');
+        setShowOtpModal(true);
       } else {
-        alert('Clear operation failed: ' + data.message);
+        if (otpCodeVal) {
+          setOtpError(data.message || 'Verification failed');
+        } else {
+          alert('Clear operation failed: ' + data.message);
+        }
       }
     } catch (err) {
       console.error('Failed to wipe user database:', err);
-      alert('Network error. Failed to wipe database.');
+      if (otpCodeVal) {
+        setOtpError('Network error. Failed to reach verification server.');
+      } else {
+        alert('Network error. Failed to wipe database.');
+      }
       setLoading(false);
+    }
+  };
+
+  // Dynamic Clubs Action Handlers
+  const handleCreateClub = async (e) => {
+    e.preventDefault();
+    if (!clubName.trim()) {
+      setClubError('Club name is required.');
+      return;
+    }
+    setClubError('');
+    setClubSuccess('');
+    setClubsLoading(true);
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/clubs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: clubName })
+      });
+      const data = await response.json();
+      setClubsLoading(false);
+      if (data.success) {
+        setClubSuccess('Club added successfully!');
+        setClubName('');
+        setShowClubModal(false);
+        fetchDashboardData();
+      } else {
+        setClubError(data.message || 'Failed to add club.');
+      }
+    } catch (err) {
+      setClubError('Network error. Failed to add club.');
+      setClubsLoading(false);
+    }
+  };
+
+  const handleEditClub = async (e) => {
+    e.preventDefault();
+    if (!clubName.trim()) {
+      setClubError('Club name is required.');
+      return;
+    }
+    setClubError('');
+    setClubSuccess('');
+    setClubsLoading(true);
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/clubs/${editingClubId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: clubName })
+      });
+      const data = await response.json();
+      setClubsLoading(false);
+      if (data.success) {
+        setClubSuccess('Club renamed successfully!');
+        setClubName('');
+        setShowClubModal(false);
+        fetchDashboardData();
+      } else {
+        setClubError(data.message || 'Failed to rename club.');
+      }
+    } catch (err) {
+      setClubError('Network error. Failed to rename club.');
+      setClubsLoading(false);
+    }
+  };
+
+  const handleDeleteClub = async (clubId, otpCodeVal = '') => {
+    if (!otpCodeVal) {
+      const confirmDelete = window.confirm('WARNING: Deleting this club will permanently wipe its profile, all scheduled events, and all standard members associated with it. This action is irreversible. Proceed?');
+      if (!confirmDelete) return;
+    }
+
+    setLoading(true);
+    try {
+      const url = `${apiUrl}/api/admin/clubs/${clubId}${otpCodeVal ? `?otp=${otpCodeVal}` : ''}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setLoading(false);
+      
+      if (data.success) {
+        alert(data.message);
+        setShowOtpModal(false);
+        setAdminOtpCode('');
+        fetchDashboardData();
+      } else if (data.requiresOtp) {
+        setOtpAction('delete-club');
+        setOtpTargetId(clubId);
+        setOtpMessage(data.message);
+        setOtpError('');
+        setShowOtpModal(true);
+      } else {
+        if (otpCodeVal) {
+          setOtpError(data.message || 'Verification failed');
+        } else {
+          alert('Delete operation failed: ' + data.message);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete club:', err);
+      if (otpCodeVal) {
+        setOtpError('Network error. Failed to reach verification server.');
+      } else {
+        alert('Network error. Failed to delete club.');
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!adminOtpCode.trim()) {
+      setOtpError('Please enter the 6-digit verification code.');
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError('');
+    try {
+      if (otpAction === 'clear-history') {
+        await handleClearHistory(adminOtpCode);
+      } else if (otpAction === 'delete-club') {
+        await handleDeleteClub(otpTargetId, adminOtpCode);
+      }
+      setOtpLoading(false);
+    } catch (err) {
+      setOtpError('Error verifying OTP.');
+      setOtpLoading(false);
     }
   };
 
@@ -454,8 +647,8 @@ const Admin = () => {
             onChange={(e) => setSelectedClub(e.target.value)}
             className="px-3.5 py-2.5 rounded-xl glass-input text-slate-800 dark:text-white text-xs font-extrabold cursor-pointer focus:outline-none"
           >
-            <option value="All Clubs" className="bg-slate-900 text-white font-bold">All 5 Clubs (Unified)</option>
-            {CLUBS.map((c) => (
+            <option value="All Clubs" className="bg-slate-900 text-white font-bold">All Clubs (Unified)</option>
+            {activeClubs.map((c) => (
               <option key={c} value={c} className="bg-slate-900 text-white font-bold">
                 {c}
               </option>
@@ -465,30 +658,36 @@ const Admin = () => {
       </div>
         
         {/* Responsive Tab Selector */}
-        <div className="flex bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 self-start sm:self-center">
+        <div className="flex overflow-x-auto whitespace-nowrap bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto self-stretch md:self-center no-scrollbar gap-1.5">
           <button
             onClick={() => setActiveTab('audits')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition duration-200 ${activeTab === 'audits' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'audits' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
           >
             Audit Queue
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition duration-200 ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
           >
             User CRUD
           </button>
           <button
             onClick={() => setActiveTab('event')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition duration-200 ${activeTab === 'event' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'event' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
           >
             Schedule Event
           </button>
           <button
             onClick={() => setActiveTab('database')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition duration-200 ${activeTab === 'database' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'database' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
           >
             Database Operations
+          </button>
+          <button
+            onClick={() => setActiveTab('clubs')}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'clubs' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+          >
+            Manage Clubs
           </button>
         </div>
 
@@ -895,7 +1094,7 @@ const Admin = () => {
                     disabled={eventLoading}
                     className="w-full px-3.5 py-3 rounded-xl glass-input text-slate-800 dark:text-white text-xs focus:outline-none bg-dark-900 font-extrabold cursor-pointer"
                   >
-                    {CLUBS.map((c) => (
+                    {activeClubs.map((c) => (
                       <option key={c} value={c} className="bg-slate-900 text-white font-bold">
                         {c}
                       </option>
@@ -1107,6 +1306,76 @@ const Admin = () => {
         </div>
       )}
 
+      {/* TAB 5: DYNAMIC CLUBS DIRECTORY */}
+      {activeTab === 'clubs' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-850 pb-4">
+            <div>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Shield className="w-5 h-5 text-indigo-400" />
+                Dynamic Club Gates Directory
+              </h2>
+              <p className="text-[11px] text-slate-450 mt-1">
+                Add, rename, or delete venue collections. Any changes dynamically update associated users and scheduled events.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setClubModalMode('create');
+                setClubName('');
+                setClubError('');
+                setClubSuccess('');
+                setShowClubModal(true);
+              }}
+              className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition duration-200 flex items-center justify-center gap-1.5 shadow"
+            >
+              <Plus className="w-4 h-4" />
+              Add Club Gate
+            </button>
+          </div>
+
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {clubs.map((c) => (
+              <div key={c._id} className="glass-panel rounded-3xl p-5 border-slate-800/80 flex flex-col justify-between hover:border-slate-700/80 transition duration-300 group">
+                <div className="space-y-1">
+                  <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest block">Venue/Gate</span>
+                  <h3 className="text-sm font-extrabold text-white group-hover:text-indigo-300 transition duration-200">{c.name}</h3>
+                  <span className="text-[10px] text-slate-500 block">Created: {new Date(c.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center justify-end gap-2.5 mt-5 pt-3.5 border-t border-slate-850/80">
+                  <button
+                    onClick={() => {
+                      setClubModalMode('edit');
+                      setEditingClubId(c._id);
+                      setClubName(c.name);
+                      setClubError('');
+                      setClubSuccess('');
+                      setShowClubModal(true);
+                    }}
+                    className="p-2 bg-slate-800/80 hover:bg-indigo-600 text-slate-400 hover:text-white rounded-lg transition duration-200"
+                    title="Rename Club"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteClub(c._id)}
+                    className="p-2 bg-slate-800/80 hover:bg-rose-600 text-slate-400 hover:text-white rounded-lg transition duration-200"
+                    title="Delete Club"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {clubs.length === 0 && (
+              <div className="col-span-full py-16 text-center text-slate-500 text-xs italic">
+                No custom clubs configured. Using default lists.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* CRUD MODAL FOR CREATE / EDIT */}
       {showUserModal && (
         <div className="fixed inset-0 bg-dark-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1235,7 +1504,7 @@ const Admin = () => {
                     onChange={(e) => setCrudUser({ ...crudUser, club: e.target.value })}
                     className="w-full px-2 py-2 text-xs rounded-lg glass-input text-slate-800 dark:text-white focus:outline-none bg-dark-900 font-extrabold cursor-pointer"
                   >
-                    {CLUBS.map((c) => (
+                    {activeClubs.map((c) => (
                       <option key={c} value={c} className="bg-slate-900 text-white font-bold">
                         {c}
                       </option>
@@ -1257,6 +1526,132 @@ const Admin = () => {
                   className="px-4.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition font-semibold"
                 >
                   Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLUB MODAL (CREATE/EDIT) */}
+      {showClubModal && (
+        <div className="fixed inset-0 bg-dark-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel-glow rounded-3xl p-6 max-w-sm w-full animate-scale-up space-y-5">
+            <div className="flex justify-between items-center border-b border-slate-850 pb-3">
+              <h3 className="font-bold text-white text-base">
+                {clubModalMode === 'create' ? 'Create Dynamic Club Gate' : 'Rename Club Gate'}
+              </h3>
+              <button 
+                onClick={() => setShowClubModal(false)}
+                className="text-slate-500 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {clubError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl">
+                {clubError}
+              </div>
+            )}
+            {clubSuccess && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-xs rounded-xl">
+                {clubSuccess}
+              </div>
+            )}
+
+            <form onSubmit={clubModalMode === 'create' ? handleCreateClub : handleEditClub} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Club Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Oasis Lounge"
+                  value={clubName}
+                  onChange={(e) => setClubName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl glass-input text-white focus:outline-none"
+                  disabled={clubsLoading}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 text-xs pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setShowClubModal(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+                  disabled={clubsLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition font-semibold"
+                  disabled={clubsLoading}
+                >
+                  {clubsLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DESTRUCTIVE ACTION SECURITY VERIFICATION OTP MODAL */}
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-dark-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel-glow rounded-3xl p-6 max-w-sm w-full animate-scale-up space-y-5 border-rose-500/20">
+            <div className="flex items-center gap-2 text-rose-500 border-b border-slate-850 pb-3">
+              <Shield className="w-5 h-5 animate-pulse" />
+              <h3 className="font-extrabold text-white text-base">Security Verification</h3>
+            </div>
+
+            <div className="text-xs text-slate-350 leading-relaxed">
+              {otpMessage}
+            </div>
+
+            {otpError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-200 text-xs rounded-xl font-bold leading-normal">
+                {otpError}
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
+                  Enter 6-Digit Authorization Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  placeholder="------"
+                  value={adminOtpCode}
+                  onChange={(e) => setAdminOtpCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-4 py-3 text-center text-lg tracking-[8px] font-bold font-mono rounded-xl glass-input text-rose-450 focus:outline-none bg-slate-950"
+                  disabled={otpLoading}
+                />
+              </div>
+
+              <div className="flex gap-2 text-xs pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOtpModal(false);
+                    setAdminOtpCode('');
+                  }}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+                  disabled={otpLoading}
+                >
+                  Cancel Action
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl transition font-bold"
+                  disabled={otpLoading}
+                >
+                  {otpLoading ? 'Verifying Code...' : 'Authorize Action'}
                 </button>
               </div>
             </form>

@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Event = require('../models/Event');
+const Club = require('../models/Club');
 const { protect, adminOnly } = require('../middleware/auth');
 
 // @route   GET api/admin/pending
@@ -317,12 +318,146 @@ router.delete('/event/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
+// HTTPS library for Resend API OTP calls
+const https = require('https');
+
+// Helper to send Admin security verification code
+const sendResendOTP = (email, otp) => {
+  return new Promise((resolve) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.log('RESEND_API_KEY missing, running OTP in fallback mode. OTP code:', otp);
+      return resolve(false);
+    }
+
+    const data = JSON.stringify({
+      from: 'AgeVault <onboarding@resend.dev>',
+      to: [email],
+      subject: 'AgeVault Admin Action Authorization Code',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0b0f19; color: #f8fafc; padding: 40px; border-radius: 24px; max-width: 600px; margin: 0 auto; border: 1px solid #1e293b; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; padding: 12px; background: linear-gradient(135deg, #4f46e5, #6366f1); border-radius: 16px; margin-bottom: 12px;">
+              <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: 1px;">AgeVault</span>
+            </div>
+            <h2 style="font-size: 20px; font-weight: 700; color: #ffffff; margin: 0;">Destructive Admin Action Request</h2>
+            <p style="font-size: 13px; color: #94a3b8; margin-top: 6px;">Security Authorization Required</p>
+          </div>
+          
+          <div style="background-color: rgba(15, 23, 42, 0.6); border: 1px solid #1e293b; padding: 24px; border-radius: 16px; text-align: center; margin-bottom: 24px;">
+            <p style="font-size: 14px; color: #94a3b8; margin-top: 0; margin-bottom: 16px;">An Admin action was requested to wipe club data or modify dynamic venue records. Enter this 6-digit code to authorize this action.</p>
+            <div style="font-size: 36px; font-weight: 800; letter-spacing: 6px; color: #f43f5e; font-family: monospace; background-color: #020617; display: inline-block; padding: 12px 30px; border-radius: 12px; border: 1px solid rgba(244, 63, 94, 0.3); text-shadow: 0 0 10px rgba(244, 63, 94, 0.4); margin-bottom: 12px;">
+              ${otp}
+            </div>
+            <p style="font-size: 11px; color: #64748b; margin: 0;">If you did not initiate this request, please ignore this email.</p>
+          </div>
+        </div>
+      `
+    });
+
+    const options = {
+      hostname: 'api.resend.com',
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let responseBody = '';
+      res.on('data', (chunk) => { responseBody += chunk; });
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(true);
+        } else {
+          console.error(`Resend API Error status: ${res.statusCode}, Body: ${responseBody}`);
+          resolve(false);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error('Resend Network Error:', err);
+      resolve(false);
+    });
+
+    req.write(data);
+    req.end();
+  });
+};
+
+// Helper: Verify Admin security code
+const verifyAdminOTP = async (req, res, otpCode) => {
+  const adminEmail = 'mohdnomaantalib@gmail.com';
+  const admin = await User.findOne({ email: adminEmail });
+  if (!admin) {
+    return { success: false, status: 404, message: 'Admin profile not found.' };
+  }
+  
+  if (!otpCode) {
+    // Check if key is configured
+    if (!process.env.RESEND_API_KEY) {
+      return { success: false, status: 500, message: 'Real OTP transmission failed: RESEND_API_KEY is not configured on the server.' };
+    }
+    
+    // Generate and send OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    admin.otp = otp;
+    admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    await admin.save();
+    
+    const emailSent = await sendResendOTP(adminEmail, otp);
+    if (!emailSent) {
+      return { success: false, status: 500, message: 'Failed to send security verification code. Please check your Resend API configurations.' };
+    }
+    
+    return { success: false, status: 400, requiresOtp: true, message: `Security Verification: A secure 6-digit authorization code has been sent to your administrator email (${adminEmail}). Please input it to authorize this action.` };
+  }
+  
+  // Verify OTP
+  if (admin.otp !== otpCode) {
+    return { success: false, status: 400, message: 'Security Verification Failed: Invalid authorization code.' };
+  }
+  
+  if (admin.otpExpires && new Date() > admin.otpExpires) {
+    return { success: false, status: 400, message: 'Security Verification Failed: Code has expired. Please try again.' };
+  }
+  
+  // Clear OTP
+  admin.otp = '';
+  admin.otpExpires = undefined;
+  await admin.save();
+  return { success: true };
+};
+
+// Helper to ensure default clubs exist
+const ensureDefaultClubs = async () => {
+  const count = await Club.countDocuments();
+  if (count === 0) {
+    const defaults = ['The Palace Lounge', 'Hype Nightclub', 'Mirage Club & Garden', 'Decibel Arena', 'Vibe Superclub'];
+    for (const name of defaults) {
+      await Club.create({ name });
+    }
+  }
+};
+
 // @route   DELETE api/admin/clear-history
 // @desc    Clear all user records (keeps admins and club staff)
 // @access  Private (Admin only)
 router.delete('/clear-history', protect, adminOnly, async (req, res) => {
-  const { club } = req.query;
+  const { club, otp } = req.query;
   try {
+    const otpVerify = await verifyAdminOTP(req, res, otp);
+    if (!otpVerify.success) {
+      if (otpVerify.requiresOtp) {
+        return res.status(otpVerify.status).json({ success: false, requiresOtp: true, message: otpVerify.message });
+      }
+      return res.status(otpVerify.status).json({ success: false, message: otpVerify.message });
+    }
+
     if (club && club !== 'All Clubs') {
       // Clear standard users for a particular club
       await User.deleteMany({ role: 'user', club });
@@ -330,9 +465,112 @@ router.delete('/clear-history', protect, adminOnly, async (req, res) => {
     } else {
       // Clear all standard users across all clubs
       await User.deleteMany({ role: 'user' });
-      res.json({ success: true, message: 'Verification history for standard users across all 5 clubs has been cleared.' });
+      res.json({ success: true, message: 'Verification history for standard users across all clubs has been cleared.' });
     }
   } catch (error) {
+    console.error('Clear history error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   GET api/admin/clubs
+// @desc    Get all dynamic clubs (Admin and Club Staff)
+// @access  Private
+router.get('/clubs', protect, async (req, res) => {
+  try {
+    await ensureDefaultClubs();
+    const clubs = await Club.find().sort({ createdAt: 1 });
+    res.json({ success: true, clubs });
+  } catch (error) {
+    console.error('Fetch clubs error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   POST api/admin/clubs
+// @desc    Create a new dynamic club Gate (Admin only)
+// @access  Private (Admin only)
+router.post('/clubs', protect, adminOnly, async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Club name is required' });
+  }
+
+  try {
+    await ensureDefaultClubs();
+    const existing = await Club.findOne({ name: name.trim() });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Club already exists' });
+    }
+
+    const club = await Club.create({ name: name.trim() });
+    res.json({ success: true, club });
+  } catch (error) {
+    console.error('Create club error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   PUT api/admin/clubs/:id
+// @desc    Edit a club name and update associated users & events (Admin only)
+// @access  Private (Admin only)
+router.put('/clubs/:id', protect, adminOnly, async (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Club name is required' });
+  }
+
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    const oldName = club.name;
+    club.name = name.trim();
+    await club.save();
+
+    // Cascading updates in background
+    await User.updateMany({ club: oldName }, { $set: { club: name.trim() } });
+    await Event.updateMany({ club: oldName }, { $set: { club: name.trim() } });
+
+    res.json({ success: true, club });
+  } catch (error) {
+    console.error('Update club error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   DELETE api/admin/clubs/:id
+// @desc    Delete a club and wipe associated events & members with OTP check (Admin only)
+// @access  Private (Admin only)
+router.delete('/clubs/:id', protect, adminOnly, async (req, res) => {
+  const { otp } = req.query;
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) {
+      return res.status(404).json({ success: false, message: 'Club not found' });
+    }
+
+    // OTP confirmation required for Destructive Action
+    const otpVerify = await verifyAdminOTP(req, res, otp);
+    if (!otpVerify.success) {
+      if (otpVerify.requiresOtp) {
+        return res.status(otpVerify.status).json({ success: false, requiresOtp: true, message: otpVerify.message });
+      }
+      return res.status(otpVerify.status).json({ success: false, message: otpVerify.message });
+    }
+
+    const clubName = club.name;
+    await Club.findByIdAndDelete(req.params.id);
+
+    // Cascading deletes
+    await Event.deleteMany({ club: clubName });
+    await User.deleteMany({ role: 'user', club: clubName });
+
+    res.json({ success: true, message: `Club "${clubName}", its scheduled events, and member directory records have been permanently wiped.` });
+  } catch (error) {
+    console.error('Delete club error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
