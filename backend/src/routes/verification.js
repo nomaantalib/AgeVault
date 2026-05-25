@@ -297,6 +297,7 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
         status: user.status,
         message: `User is not verified. Current status: ${user.status.toUpperCase()}`,
         user: {
+          id: user._id,
           name: user.name,
           age: user.age,
           dob: user.dob,
@@ -320,6 +321,7 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       message: 'Access Granted: User is verified.',
       eventTitle: event ? event.title : 'General Admission',
       user: {
+        id: user._id,
         name: user.name,
         age: user.age,
         dob: user.dob,
@@ -336,6 +338,91 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       success: false,
       message: 'Invalid QR Code: Token has been modified or is expired.'
     });
+  }
+// @route   POST api/verify/access
+// @desc    Gate staff override to manually grant or revoke user entry/verification status
+// @access  Private (Club or Admin only)
+router.post('/access', protect, clubOrAdmin, async (req, res) => {
+  const { userId, action } = req.body;
+
+  if (!userId || !['grant', 'revoke'].includes(action)) {
+    return res.status(400).json({ success: false, message: 'UserId and action (grant/revoke) are required.' });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // Get latest event details
+    const event = await Event.findOne().sort({ createdAt: -1 });
+
+    if (action === 'grant') {
+      user.status = 'verified';
+      user.qrScanned = true;
+      user.qrScannedAt = new Date();
+      // Generate dynamic QR token if it doesn't exist
+      if (!user.qrToken) {
+        const jwtSecret = process.env.JWT_SECRET;
+        const qrPayload = {
+          uid: user._id,
+          name: user.name,
+          verified: true,
+          age: user.age || 18,
+          timestamp: Math.floor(Date.now() / 1000)
+        };
+        user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
+      }
+      await user.save();
+      return res.json({ 
+        success: true, 
+        verified: true,
+        status: user.status,
+        message: `Entry manually GRANTED and verification pass approved for ${user.name}.`,
+        eventTitle: event ? event.title : 'General Admission',
+        user: {
+          name: user.name,
+          age: user.age,
+          dob: user.dob,
+          phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'),
+          status: user.status,
+          qrScanned: user.qrScanned,
+          qrScannedAt: user.qrScannedAt,
+          faceMatchConfidence: user.faceMatchConfidence,
+          idCardUrl: user.idCardUrl,
+          selfieUrl: user.selfieUrl
+        }
+      });
+    } else {
+      // Action: revoke
+      user.status = 'rejected';
+      user.qrScanned = false;
+      user.qrScannedAt = undefined;
+      await user.save();
+      return res.json({ 
+        success: true, 
+        verified: false,
+        status: user.status,
+        message: `Verification pass and entry REVOKED for ${user.name}.`,
+        eventTitle: event ? event.title : 'General Admission',
+        user: {
+          name: user.name,
+          age: user.age,
+          dob: user.dob,
+          phone: user.phone.replace(/(\+\d{2})(\d{5})(\d{5})/, '$1*****$3'),
+          status: user.status,
+          qrScanned: user.qrScanned,
+          qrScannedAt: user.qrScannedAt,
+          faceMatchConfidence: user.faceMatchConfidence,
+          idCardUrl: user.idCardUrl,
+          selfieUrl: user.selfieUrl
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Manual override access error:', error);
+    res.status(500).json({ success: false, message: 'Server error while updating access status.' });
   }
 });
 

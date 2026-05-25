@@ -179,7 +179,7 @@ router.post('/send-otp', async (req, res) => {
         phone: formattedPhone,
         name,
         role: finalRole,
-        status: finalRole === 'user' ? 'pending' : 'verified',
+        status: finalRole === 'admin' ? 'verified' : 'pending',
       });
     } else {
       // If registering but user exists, let's update details if provided
@@ -188,8 +188,10 @@ router.post('/send-otp', async (req, res) => {
         if (formattedPhone) user.phone = formattedPhone;
         if (role) {
           user.role = finalRole;
-          if (finalRole !== 'user') {
+          if (finalRole === 'admin') {
             user.status = 'verified';
+          } else {
+            user.status = 'pending';
           }
         }
       }
@@ -224,15 +226,7 @@ router.post('/send-otp', async (req, res) => {
     const otpResult = await sendResendOTP(email, otp);
 
     if (!otpResult.success) {
-      // Bypassing any blocking failure: If Resend fails for any reason (sandbox, invalid keys, quota, network error),
-      // we save the user and return the simulated OTP so the registration/login flow does not crash.
-      await user.save();
-      console.warn(`[OTP FALLBACK] Resend email transmission failed. Falling back to simulated OTP for ${email}. Code: ${otp}`);
-      return res.json({
-        success: true,
-        message: `[Fallback Mode] A secure verification code has been generated: ${otp}`,
-        otp: otp
-      });
+      return res.status(500).json({ success: false, message: 'Failed to send security verification code. Please check your Resend API configurations.' });
     }
 
     res.json({

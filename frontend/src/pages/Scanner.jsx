@@ -105,6 +105,38 @@ const Scanner = () => {
     }
   };
 
+  const handleOverrideAccess = async (userId, action) => {
+    if (!userId) {
+      setError('User ID is missing. Cannot override access.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`${apiUrl}/api/verify/access`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, action }),
+      });
+
+      const data = await response.json();
+      setLoading(false);
+
+      if (data.success) {
+        setScanResult(data);
+      } else {
+        setError(data.message || 'Failed to update access status.');
+      }
+    } catch (err) {
+      console.error('Access override error:', err);
+      setError('Network error. Failed to reach verification server.');
+      setLoading(false);
+    }
+  };
+
   const handleManualSubmit = (e) => {
     e.preventDefault();
     if (!manualToken) return;
@@ -296,6 +328,26 @@ const Scanner = () => {
                     {scanResult.user.faceMatchConfidence}%
                   </span>
                 </div>
+              </div>
+              
+              {/* Manual Override Actions for gate staff */}
+              <div className="grid grid-cols-2 gap-3 mt-4 mb-2">
+                <button
+                  onClick={() => handleOverrideAccess(scanResult.user?.id, 'grant')}
+                  disabled={loading}
+                  className="py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition duration-200 flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Grant Access
+                </button>
+                <button
+                  onClick={() => handleOverrideAccess(scanResult.user?.id, 'revoke')}
+                  disabled={loading}
+                  className="py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition duration-200 flex items-center justify-center gap-1.5"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Revoke Access
+                </button>
               </div>
 
               {/* Reset scan button */}
