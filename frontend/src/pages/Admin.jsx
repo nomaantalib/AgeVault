@@ -30,6 +30,7 @@ const Admin = () => {
 
   // Event scheduling states
   const [activeEvent, setActiveEvent] = useState(null);
+  const [allEvents, setAllEvents] = useState([]);
   const [eventTitle, setEventTitle] = useState('');
   const [eventDateTime, setEventDateTime] = useState('');
   const [eventVenue, setEventVenue] = useState('');
@@ -97,6 +98,21 @@ const Admin = () => {
         const dt = new Date(eventData.event.dateTime);
         const formattedDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         setEventDateTime(formattedDt);
+      } else {
+        setActiveEvent(null);
+        setEventTitle('');
+        setEventVenue('');
+        setEventDescription('');
+        setEventDateTime('');
+      }
+
+      // 5. Fetch all events list (history)
+      const allEventsRes = await fetch(`${apiUrl}/api/admin/events`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const allEventsData = await allEventsRes.json();
+      if (allEventsData.success) {
+        setAllEvents(allEventsData.events);
       }
     } catch (err) {
       console.error('Failed to fetch admin dashboard:', err);
@@ -139,6 +155,28 @@ const Admin = () => {
       console.error('Error scheduling event:', err);
       setEventError('Network error. Failed to reach verification server.');
       setEventLoading(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    const confirmDelete = window.confirm('Are you sure you want to permanently delete this event?');
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/event/${eventId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Event deleted successfully.');
+        fetchDashboardData();
+      } else {
+        alert(data.message || 'Failed to delete event.');
+      }
+    } catch (err) {
+      console.error('Delete event error:', err);
+      alert('Failed to delete event due to network error.');
     }
   };
 
@@ -824,35 +862,90 @@ const Admin = () => {
             </form>
           </div>
 
-          {/* Active Schedule Overview */}
+          {/* Event Schedule & History List */}
           <div className="glass-panel rounded-3xl p-6 border-slate-800/80 space-y-4">
-            <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Current Live Event Details</h2>
-            {activeEvent ? (
-              <div className="bg-slate-950/40 border border-slate-850 rounded-2xl p-5 space-y-4">
-                <div className="border-b border-slate-900 pb-3">
-                  <span className="text-[10px] text-indigo-400 uppercase tracking-wider font-extrabold block">Title</span>
-                  <span className="text-white font-extrabold text-base block mt-0.5">{activeEvent.title}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 border-b border-slate-900 pb-3">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Date & Time</span>
-                    <span className="text-white font-semibold font-mono text-xs block mt-0.5">
-                      {new Date(activeEvent.dateTime).toLocaleString()}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Venue</span>
-                    <span className="text-white font-semibold text-xs block mt-0.5">{activeEvent.venue}</span>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold block">Description</span>
-                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">{activeEvent.description || 'No description provided.'}</p>
-                </div>
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h2 className="text-xs font-bold text-indigo-400 uppercase tracking-wider text-left">
+                Event History & Schedule ({allEvents.length})
+              </h2>
+              <button 
+                type="button"
+                onClick={fetchDashboardData}
+                className="text-slate-500 hover:text-white transition"
+                title="Refresh Events"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            
+            {allEvents.length === 0 ? (
+              <div className="text-center py-16 text-slate-500 text-xs italic">
+                No events scheduled. Users will see standby mode on registration screen.
               </div>
             ) : (
-              <div className="text-center py-16 text-slate-500 text-xs italic">
-                No active event scheduled. Users will see standby mode on registration screen.
+              <div className="space-y-3.5 max-h-[550px] overflow-y-auto pr-1">
+                {allEvents.map((evt) => {
+                  const isPast = new Date(evt.dateTime) < new Date();
+                  return (
+                    <div 
+                      key={evt._id} 
+                      className={`p-4 rounded-2xl border transition duration-200 text-left ${
+                        isPast 
+                          ? 'bg-slate-900/20 border-slate-850 hover:border-slate-800' 
+                          : 'bg-indigo-950/10 border-indigo-900/40 hover:border-indigo-850/60 shadow-[0_0_15px_rgba(99,102,241,0.02)]'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-extrabold text-white">{evt.title}</h3>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-mono">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-indigo-400" />
+                              {new Date(evt.dateTime).toLocaleString()}
+                            </span>
+                            <span className="text-slate-650">|</span>
+                            <span>{evt.venue}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {isPast ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-slate-800 border border-slate-700 text-slate-400">
+                              Past Event
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                              </span>
+                              Active
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEvent(evt._id)}
+                            className="p-1.5 bg-slate-900 hover:bg-rose-500/10 hover:text-rose-400 rounded-md text-slate-500 transition duration-200"
+                            title="Delete Event"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 pt-2.5 border-t border-slate-900/60">
+                        <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold block mb-0.5">Description</span>
+                        {evt.description ? (
+                          <p className="text-[11px] text-slate-350 leading-relaxed break-words">{evt.description}</p>
+                        ) : isPast ? (
+                          <p className="text-[11px] text-slate-500 italic">Description auto-compressed to save database storage.</p>
+                        ) : (
+                          <p className="text-[11px] text-slate-500 italic">No description provided.</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

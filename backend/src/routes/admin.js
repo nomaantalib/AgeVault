@@ -218,15 +218,52 @@ router.get('/export', protect, adminOnly, async (req, res) => {
   }
 });
 
+// Helper: Truncate past event descriptions to minimize MongoDB storage occupancy
+const compressEventHistory = async () => {
+  try {
+    // Clear description for events older than today to save space
+    await Event.updateMany(
+      { dateTime: { $lt: new Date() }, description: { $ne: '' } },
+      { $set: { description: '' } }
+    );
+  } catch (err) {
+    console.error('Error compressing event history:', err);
+  }
+};
+
 // @route   GET api/admin/event
-// @desc    Get the latest scheduled event (Public)
+// @desc    Get the upcoming scheduled event (Public)
 // @access  Public
 router.get('/event', async (req, res) => {
   try {
-    const event = await Event.findOne().sort({ createdAt: -1 });
+    // Clean up older events description to minimize space
+    await compressEventHistory();
+    
+    // Find the next upcoming event (date in future)
+    let event = await Event.findOne({ dateTime: { $gte: new Date() } }).sort({ dateTime: 1 });
+    
+    // If no upcoming event, fall back to the most recently created event
+    if (!event) {
+      event = await Event.findOne().sort({ dateTime: -1 });
+    }
+    
     res.json({ success: true, event });
   } catch (error) {
     console.error('Fetch event error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   GET api/admin/events
+// @desc    Get all events list for history (Admin only)
+// @access  Private (Admin only)
+router.get('/events', protect, adminOnly, async (req, res) => {
+  try {
+    await compressEventHistory();
+    const events = await Event.find({}).sort({ dateTime: -1 });
+    res.json({ success: true, events });
+  } catch (error) {
+    console.error('Fetch all events error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -250,9 +287,29 @@ router.post('/event', protect, adminOnly, async (req, res) => {
     });
 
     await newEvent.save();
+    
+    // Compact old events to save space
+    await compressEventHistory();
+    
     res.json({ success: true, message: 'Event scheduled successfully.', event: newEvent });
   } catch (error) {
     console.error('Create event error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// @route   DELETE api/admin/event/:id
+// @desc    Delete a specific event from schedule/history (Admin only)
+// @access  Private (Admin only)
+router.delete('/event/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const event = await Event.findByIdAndDelete(req.params.id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found.' });
+    }
+    res.json({ success: true, message: 'Event deleted successfully.' });
+  } catch (error) {
+    console.error('Delete event error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
