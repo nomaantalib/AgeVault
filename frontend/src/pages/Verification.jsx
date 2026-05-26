@@ -135,20 +135,21 @@ const Verification = () => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Load face-api models on mount
+  // Load face-api models on mount (using free, reliable CDN hosting from GitHub weights repository)
   useEffect(() => {
     const loadModels = async () => {
       try {
         setLoadingMsg('Loading Face Detection Models...');
+        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
         // Load ssdMobilenetv1, tinyFaceDetector, faceLandmark, and faceRecognition models
-        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-        await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+        await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
         setModelsLoaded(true);
       } catch (err) {
         console.error('Error loading face-api models:', err);
-        setError('Failed to load face detection models. Ensure models are downloaded in /models directory.');
+        setError('Failed to load face detection models from CDN. Please refresh the page.');
       }
     };
     loadModels();
@@ -176,7 +177,7 @@ const Verification = () => {
       // Create worker with explicit CDN paths to prevent load failure in different environments
       const worker = await createWorker({
         workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
-        langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
+        langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0',
         corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.1/tesseract-core.wasm.js',
         logger: m => console.log('Tesseract OCR status:', m)
       });
