@@ -408,6 +408,10 @@ router.post('/access', protect, clubOrAdmin, async (req, res) => {
         };
         user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
       }
+      if (!user.qrPin) {
+        user.qrPin = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit passcode
+        user.qrPinExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days expiry
+      }
       await user.save();
       return res.json({ 
         success: true, 
