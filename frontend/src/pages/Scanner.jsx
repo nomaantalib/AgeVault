@@ -242,8 +242,6 @@ const Scanner = () => {
 
         if (shouldStopRef.current) return;
 
-        const html5QrCode = new Html5Qrcode(scannerContainerId);
-        scannerRef.current = html5QrCode;
         isStartingRef.current = true;
 
         const config = { 
@@ -262,40 +260,47 @@ const Scanner = () => {
         };
 
         try {
-          await html5QrCode.start(
-            cameraConstraints,
-            config,
-            (decodedText) => {
-              stopScannerAndVerify(decodedText);
-            },
-            () => {}
-          );
-        } catch (envErr) {
-          console.warn('Environment camera failed, trying user camera...', envErr);
-          if (shouldStopRef.current) {
-            try { await html5QrCode.stop(); } catch(e){}
-            return;
-          }
-          await html5QrCode.start(
-            { facingMode: 'user', frameRate: { ideal: 60 } },
-            config,
-            (decodedText) => {
-              stopScannerAndVerify(decodedText);
-            },
-            () => {}
-          );
-        }
+          const html5QrCode = new Html5Qrcode(scannerContainerId);
+          scannerRef.current = html5QrCode;
 
-        isStartingRef.current = false;
-        if (shouldStopRef.current) {
-          await stopScanner();
+          try {
+            await html5QrCode.start(
+              cameraConstraints,
+              config,
+              (decodedText) => {
+                stopScannerAndVerify(decodedText);
+              },
+              () => {}
+            );
+          } catch (envErr) {
+            console.warn('Environment camera failed, trying user camera...', envErr);
+            if (shouldStopRef.current) return;
+
+            // Fresh instance for user fallback to cleanly avoid "Cannot transition to a new state" machine locks
+            const fallbackQrCode = new Html5Qrcode(scannerContainerId);
+            scannerRef.current = fallbackQrCode;
+
+            await fallbackQrCode.start(
+              { facingMode: 'user', frameRate: { ideal: 60 } },
+              config,
+              (decodedText) => {
+                stopScannerAndVerify(decodedText);
+              },
+              () => {}
+            );
+          }
+
+          if (shouldStopRef.current) {
+            await stopScanner();
+          }
+        } finally {
+          isStartingRef.current = false;
         }
       } catch (err) {
         console.error('All camera attempts failed:', err);
         setError('Failed to start camera. Please verify permissions are granted and camera is available.');
         setScanning(false);
         scannerRef.current = null;
-        isStartingRef.current = false;
       }
     }, 200); // 200ms debounce ensures StrictMode double mounts are fully resolved
   };
