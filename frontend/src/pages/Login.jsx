@@ -91,7 +91,12 @@ const Login = () => {
         });
         window.google.accounts.id.renderButton(
           document.getElementById('google-signin-btn'),
-          { theme: 'dark', size: 'large', width: '100%' }
+          { 
+            type: 'icon',
+            theme: 'filled_black',
+            size: 'large',
+            shape: 'circle'
+          }
         );
       }
     } catch (err) {
@@ -436,7 +441,7 @@ const Login = () => {
                 <span className="relative px-3 text-[9px] font-bold uppercase" style={{ color: 'var(--text-muted)', background: 'var(--glass-bg-glow)' }}>Or Google verification</span>
               </div>
 
-              <div id="google-signin-btn" className="w-full overflow-hidden rounded-xl flex justify-center"></div>
+              <div id="google-signin-btn" className="flex justify-center my-3 hover:scale-110 active:scale-95 transition-all duration-300"></div>
 
               {/* Developer fallback/bypass to log in immediately */}
               <div className="mt-3 grid grid-cols-2 gap-2">

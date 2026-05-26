@@ -43,71 +43,94 @@
 
 /* ─────────────────────────── LIGHT (CLUB-DAY) THEME ─────────────────────────── */
 .light {
-  --bg-base: #fdfcf7; /* Premium Off-White */
-  --bg-animate-gradient: linear-gradient(-45deg, #fdfcf7, #f7f4ec, #fcfaf2, #faf7ee);
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-bg-glow: rgba(255, 255, 255, 0.93);
-  --glass-border: rgba(212, 175, 55, 0.2); /* Gold border */
-  --glass-glow-border: rgba(212, 175, 55, 0.4);
-  --glass-shadow: 0 8px 32px 0 rgba(212, 175, 55, 0.04);
-  --glass-glow-shadow: 0 10px 40px 0 rgba(212, 175, 55, 0.06);
-  --glass-input-bg: rgba(255, 255, 255, 0.85);
-  --glass-input-border: rgba(212, 175, 55, 0.22);
-  --text-primary: #1c180e; /* Warm dark brown/charcoal */
-  --text-secondary: #3d3522;
-  --text-muted: #73674d;
-  --border-muted: rgba(212, 175, 55, 0.22);
-  --theme-switch-bg: rgba(255, 255, 255, 0.6);
+  --bg-base: #f5eecb; /* Warm premium Golden Cream instead of off-white */
+  --bg-animate-gradient: linear-gradient(-45deg, #f5eecb, #ebdca7, #eacf8d, #f5eecb);
+  --glass-bg: rgba(245, 238, 203, 0.75);
+  --glass-bg-glow: rgba(235, 220, 167, 0.92);
+  --glass-border: rgba(170, 124, 17, 0.35); /* Gold border */
+  --glass-glow-border: rgba(170, 124, 17, 0.55);
+  --glass-shadow: 0 8px 32px 0 rgba(170, 124, 17, 0.1);
+  --glass-glow-shadow: 0 10px 40px 0 rgba(170, 124, 17, 0.15);
+  --glass-input-bg: rgba(255, 255, 255, 0.65);
+  --glass-input-border: rgba(170, 124, 17, 0.35);
+  --text-primary: #000000; /* Pure black text */
+  --text-secondary: #111111; /* Black text */
+  --text-muted: #2d2d2d;
+  --border-muted: rgba(170, 124, 17, 0.35);
+  --theme-switch-bg: rgba(235, 220, 167, 0.7);
   --neon-violet: #aa7c11;
   --neon-pink: #d4af37;
   --neon-gold: #b8860b;
   --neon-cyan: #8a733e;
-  --accent-gradient: linear-gradient(135deg, #d4af37 0%, #1c180e 100%);
+  --accent-gradient: linear-gradient(135deg, #d4af37 0%, #000000 100%);
+  
+  font-weight: 600; /* Globally bold text in light mode */
+}
+
+/* Bold inputs, paragraph, labels, buttons in light mode */
+.light input, 
+.light select,
+.light button, 
+.light p, 
+.light span, 
+.light label,
+.light div,
+.light h1,
+.light h2,
+.light h3,
+.light h4,
+.light a {
+  font-weight: 700 !important;
+}
+
+.light input::placeholder {
+  color: #555555 !important;
+  font-weight: 600 !important;
 }
 
 /* ─── Light mode overrides for class names ─── */
 .light .text-slate-300,
 .light .text-slate-400,
-.light .text-slate-500 { color: #3a3325 !important; }
+.light .text-slate-500 { color: #111111 !important; font-weight: 700 !important; }
 .light .text-slate-600,
-.light .text-slate-700 { color: #1e1b15 !important; }
+.light .text-slate-700 { color: #000000 !important; font-weight: 800 !important; }
 .light .text-gray-400,
-.light .text-gray-500  { color: #3a3325 !important; }
-.light .text-white     { color: #1e1b15 !important; }
+.light .text-gray-500  { color: #111111 !important; font-weight: 700 !important; }
+.light .text-white     { color: #000000 !important; font-weight: 800 !important; }
 
 .light .bg-slate-950,
 .light .bg-slate-900,
 .light .bg-slate-800   { 
-  background-color: rgba(255, 255, 255, 0.65) !important; 
+  background-color: rgba(235, 220, 167, 0.75) !important; 
   backdrop-filter: blur(20px) saturate(180%); 
   -webkit-backdrop-filter: blur(20px) saturate(180%); 
 }
 .light .bg-slate-950\/45,
 .light .bg-slate-900\/60,
 .light .bg-slate-900\/20 { 
-  background-color: rgba(255, 255, 255, 0.45) !important; 
+  background-color: rgba(235, 220, 167, 0.55) !important; 
   backdrop-filter: blur(20px) saturate(180%); 
   -webkit-backdrop-filter: blur(20px) saturate(180%); 
 }
 .light .bg-dark-900 {
-  background-color: rgba(255, 255, 255, 0.65) !important;
+  background-color: rgba(235, 220, 167, 0.75) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 .light .bg-dark-900\/80,
 .light .bg-dark-900\/90 {
-  background-color: rgba(255, 255, 255, 0.8) !important;
+  background-color: rgba(235, 220, 167, 0.85) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 .light .border-slate-800,
 .light .border-slate-850,
-.light .border-slate-700 { border-color: rgba(184, 115, 51, 0.22) !important; }
-.light .border-slate-900  { border-color: rgba(184, 115, 51, 0.15) !important; }
+.light .border-slate-700 { border-color: rgba(170, 124, 17, 0.35) !important; }
+.light .border-slate-900  { border-color: rgba(170, 124, 17, 0.25) !important; }
 
 .light .hover\:bg-slate-700:hover,
-.light .hover\:bg-slate-800:hover { background-color: rgba(245, 240, 230, 0.8) !important; }
+.light .hover\:bg-slate-800:hover { background-color: rgba(235, 220, 167, 0.95) !important; }
 
 /* ─────────────────────────── ANIMATED BG ─────────────────────────── */
 .animated-bg {
