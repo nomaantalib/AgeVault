@@ -6,6 +6,9 @@ const Event = require('../models/Event');
 const upload = require('../middleware/upload');
 const { uploadImage } = require('../config/cloudinary');
 const { protect, clubOrAdmin } = require('../middleware/auth');
+const fs = require('fs');
+const { execFile } = require('child_process');
+const path = require('path');
 
 // Helper: Calculate age from DOB
 const calculateAge = (dobString) => {
@@ -20,83 +23,23 @@ const calculateAge = (dobString) => {
   return age;
 };
 
-// Google Cloud Vision REST OCR Helper (100% Native NodeJS HTTPS)
-const fs = require('fs');
-const https = require('https');
-
-const runGoogleVisionOCR = (filePath) => {
+// Helper to spawn backend Python PaddleOCR + DeepFace verification script
+const runPythonMLVerify = (idCardPath, selfiePath, idType) => {
   return new Promise((resolve) => {
-    const apiKey = process.env.GOOGLE_VISION_API_KEY;
-    if (!apiKey) {
-      console.log('Google Vision API key missing. Skipping backend ML verification.');
-      return resolve(null);
-    }
-
-    try {
-      if (!fs.existsSync(filePath)) {
+    const scriptPath = path.join(__dirname, '..', '..', 'scripts', 'verify_ml.py');
+    execFile('python', [scriptPath, idCardPath, selfiePath, idType || 'aadhaar'], (error, stdout, stderr) => {
+      if (error) {
+        console.warn('Python PaddleOCR + DeepFace verification failed or is not installed:', stderr || error.message);
         return resolve(null);
       }
-      const imageBuffer = fs.readFileSync(filePath);
-      const base64Image = imageBuffer.toString('base64');
-
-      const requestData = JSON.stringify({
-        requests: [
-          {
-            image: {
-              content: base64Image
-            },
-            features: [
-              {
-                type: 'TEXT_DETECTION'
-              }
-            ]
-          }
-        ]
-      });
-
-      const options = {
-        hostname: 'vision.googleapis.com',
-        path: `/v1/images:annotate?key=${apiKey}`,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(requestData)
-        }
-      };
-
-      const req = https.request(options, (res) => {
-        let responseData = '';
-        res.on('data', (chunk) => {
-          responseData += chunk;
-        });
-
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(responseData);
-            const textAnnotations = parsed.responses?.[0]?.textAnnotations;
-            if (textAnnotations && textAnnotations.length > 0) {
-              resolve(textAnnotations[0].description);
-            } else {
-              resolve('');
-            }
-          } catch (e) {
-            console.error('Failed to parse Google Vision response:', e);
-            resolve('');
-          }
-        });
-      });
-
-      req.on('error', (e) => {
-        console.error('Google Vision request error:', e);
-        resolve('');
-      });
-
-      req.write(requestData);
-      req.end();
-    } catch (err) {
-      console.error('Google Vision file read error:', err);
-      resolve('');
-    }
+      try {
+        const parsed = JSON.parse(stdout.trim());
+        resolve(parsed);
+      } catch (e) {
+        console.error('Failed to parse Python ML output:', stdout);
+        resolve(null);
+      }
+    });
   });
 };
 
@@ -108,7 +51,7 @@ router.post('/submit', protect, upload.fields([
   { name: 'selfie', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { name, dob, faceMatchConfidence } = req.body;
+    const { name, dob, idNumber, faceMatchConfidence, ocrName, ocrDob, ocrIdNumber, idType } = req.body;
 
     if (!dob) {
       return res.status(400).json({ success: false, message: 'Date of birth (DOB) is required' });
@@ -124,49 +67,30 @@ router.post('/submit', protect, upload.fields([
       return res.status(400).json({ success: false, message: 'Access Denied: You must be 18 years or older to register.' });
     }
 
-    // Google Cloud Vision OCR backend check (if API key is present)
     const idCardLocalPath = req.files['idCard'][0].path;
-    const googleVisionText = await runGoogleVisionOCR(idCardLocalPath);
+    const selfieLocalPath = req.files['selfie'][0].path;
 
-    if (googleVisionText) {
-      console.log('Google Vision ML OCR extracted text successfully.');
-      // Attempt to extract and double-check DOB
-      const dobRegex = /\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g;
-      const matches = googleVisionText.match(dobRegex);
-      let dobParsed = '';
-      
-      if (matches && matches.length > 0) {
-        const parts = matches[0].split(/[\/\-]/);
-        if (parts[0].length === 4) {
-          dobParsed = matches[0];
-        } else {
-          dobParsed = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
+    // Trigger the high-accuracy backend Python ML pipeline (PaddleOCR + DeepFace)
+    let mlVerified = false;
+    let mlMatchScore = 0;
+    let mlDob = '';
+    let mlName = '';
+    let mlIdNumber = '';
 
-      if (!dobParsed) {
-        const yobRegex = /(?:Year of Birth|YOB|Birth|Year)\s*:\s*(\d{4})/i;
-        const yobMatch = googleVisionText.match(yobRegex);
-        if (yobMatch && yobMatch[1]) {
-          dobParsed = `${yobMatch[1]}-01-01`;
-        }
-      }
+    const mlResult = await runPythonMLVerify(idCardLocalPath, selfieLocalPath, idType);
 
-      if (dobParsed) {
-        const mlAge = calculateAge(dobParsed);
-        if (mlAge < 18) {
-          return res.status(400).json({ 
-            success: false, 
-            message: `Access Denied: Google ML Vision OCR verified that the DOB on this document (${dobParsed}) is underage.` 
-          });
-        }
-        console.log(`Google Vision verified DOB: ${dobParsed}, Age: ${mlAge}`);
-      }
+    if (mlResult && mlResult.success) {
+      console.log('Backend PaddleOCR + DeepFace Pipeline executed successfully:', mlResult);
+      mlVerified = true;
+      mlMatchScore = mlResult.face_match_confidence;
+      mlDob = mlResult.dob;
+      mlName = mlResult.name;
+      mlIdNumber = mlResult.id_number;
+    } else {
+      console.warn('Backend Python ML Pipeline failed/missing dependencies. Falling back to client-side inputs.');
     }
 
     // Upload files using the Cloudinary/Local adapter
-    const selfieLocalPath = req.files['selfie'][0].path;
-
     const idCardUrl = await uploadImage(idCardLocalPath, req);
     const selfieUrl = await uploadImage(selfieLocalPath, req);
 
@@ -182,15 +106,70 @@ router.post('/submit', protect, upload.fields([
     };
     cleanupFiles();
 
-    const confidenceScore = faceMatchConfidence ? parseFloat(faceMatchConfidence) : 0;
+    const confidenceScore = mlVerified ? mlMatchScore : (faceMatchConfidence ? parseFloat(faceMatchConfidence) : 0);
 
-    // Auto-verify if:
-    // 1. User is older than 18
-    // 2. Face match confidence is 20% or higher
-    // Otherwise, set status to pending for admin manual review
+    // Helper: Normalize strings for fuzzy comparison to ignore minor OCR reading typos
+    const cleanStringForComparison = (str) => {
+      if (!str) return '';
+      return str.toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+    };
+
+    // Strict OCR Verification Guard:
+    // Auto-verify ONLY if:
+    // 1. Calculated age is >= 18
+    // 2. Face match confidence is 40% or higher
+    // 3. User entered DOB matches the raw OCR-extracted DOB
+    // 4. User entered Name matches the raw OCR-extracted Name
     let status = 'pending';
-    if (age >= 18 && confidenceScore >= 20) {
-      status = 'verified';
+    
+    if (mlVerified) {
+      const isDobMatching = mlDob && dob === mlDob;
+      const isNameMatching = mlName && cleanStringForComparison(name) === cleanStringForComparison(mlName);
+      const isIdNumberMatching = mlIdNumber && cleanStringForComparison(idNumber) === cleanStringForComparison(mlIdNumber);
+      
+      if (age >= 18 && confidenceScore >= 40 && isDobMatching && isNameMatching && isIdNumberMatching) {
+        status = 'verified';
+        console.log('Strict backend PaddleOCR + DeepFace verification passed. Auto-verifying user.');
+      } else {
+        status = 'pending';
+        console.log('Strict backend verification mismatch or low confidence. Set to pending:', {
+          age: age >= 18,
+          confidence: confidenceScore >= 40,
+          isDobMatching,
+          isNameMatching,
+          isIdNumberMatching,
+          mlDob,
+          dob,
+          mlName,
+          name,
+          mlIdNumber,
+          idNumber
+        });
+      }
+    } else {
+      const isDobMatching = ocrDob && dob === ocrDob;
+      const isNameMatching = ocrName && cleanStringForComparison(name) === cleanStringForComparison(ocrName);
+      const isIdNumberMatching = ocrIdNumber && cleanStringForComparison(idNumber) === cleanStringForComparison(ocrIdNumber);
+      
+      if (age >= 18 && confidenceScore >= 40 && isDobMatching && isNameMatching && isIdNumberMatching) {
+        status = 'verified';
+        console.log('Client-side Tesseract OCR + face-api verification passed. Auto-verifying user.');
+      } else {
+        status = 'pending';
+        console.log('Client-side verification mismatch or low confidence. Defaulting status to pending for admin human review:', {
+          age: age >= 18,
+          confidence: confidenceScore >= 40,
+          isDobMatching,
+          isNameMatching,
+          isIdNumberMatching,
+          ocrDob,
+          dob,
+          ocrName,
+          name,
+          ocrIdNumber,
+          idNumber
+        });
+      }
     }
 
     const user = await User.findById(req.user.id);
@@ -201,13 +180,14 @@ router.post('/submit', protect, upload.fields([
     user.name = name || user.name;
     user.dob = new Date(dob);
     user.age = age;
+    user.idNumber = idNumber || user.idNumber;
     user.status = status;
     user.idCardUrl = idCardUrl;
     user.selfieUrl = selfieUrl;
     user.faceMatchConfidence = confidenceScore;
     user.rejectionReason = ''; // Clear previous reasons
     user.qrScanned = false; // Reset scan status on new submission
-
+ 
     // Generate Encrypted / Signed JWT for QR verification ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
     if (status === 'verified') {
@@ -220,7 +200,7 @@ router.post('/submit', protect, upload.fields([
       };
       const qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
       user.qrToken = qrToken;
-      user.qrPin = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8-digit PIN
+      user.qrPin = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit passcode
       user.qrPinExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days expiry
     } else {
       user.qrToken = '';
@@ -267,32 +247,16 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
     let user;
     let decoded = null;
 
-    const trimmedToken = qrToken.trim();
-
-    // 1. Check if the scanned token is a 24-character hex MongoDB ObjectID (Unique User ID)
-    if (/^[0-9a-fA-F]{24}$/.test(trimmedToken)) {
-      user = await User.findById(trimmedToken);
-    }
-    // 2. Check if it is a phone number (e.g. 9999999999 or +919999999999)
-    else if (/^\+?[0-9]{10,15}$/.test(trimmedToken)) {
-      user = await User.findOne({ phone: trimmedToken });
-      if (!user && !trimmedToken.startsWith('+')) {
-        // Try with +91 prefix fallback
-        user = await User.findOne({ phone: `+91${trimmedToken}` });
-      }
-    }
-    // 3. Check if it is an 8-digit PIN code
-    else if (/^\d{8}$/.test(trimmedToken)) {
-      user = await User.findOne({ qrPin: trimmedToken });
+    // Check if the scanned token is a 6-digit passcode or 8-digit PIN code
+    if (/^\d{6}$/.test(qrToken.trim()) || /^\d{8}$/.test(qrToken.trim())) {
+      user = await User.findOne({ qrPin: qrToken.trim() });
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'Access Denied: Invalid PIN code. Customer record not found.'
         });
       }
-    }
-    // 4. Default: Treat it as a standard JWT QR Token
-    else {
+    } else {
       // Decode and verify JWT signature to extract user ID
       try {
         decoded = jwt.verify(qrToken, jwtSecret);

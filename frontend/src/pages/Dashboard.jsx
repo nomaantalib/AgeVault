@@ -111,12 +111,12 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Access PIN Code Display */}
+            {/* Access Passcode Display */}
             {user.qrPin && !user.qrScanned && (
               <div className="mb-6 px-5 py-2 border border-amber-500/20 bg-black/40 rounded-2xl flex flex-col items-center shadow-inner">
-                <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Access PIN Code</span>
+                <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Access Passcode</span>
                 <span className="text-2xl font-black font-mono text-gradient tracking-[4px] mt-0.5">
-                  {user.qrPin.slice(0, 4)} - {user.qrPin.slice(4)}
+                  {user.qrPin.length === 6 ? `${user.qrPin.slice(0, 3)} - ${user.qrPin.slice(3)}` : `${user.qrPin.slice(0, 4)} - ${user.qrPin.slice(4)}`}
                 </span>
                 <span className="text-[8px] text-slate-500 mt-1 uppercase font-semibold">Valid for 3 days or until scanned</span>
               </div>

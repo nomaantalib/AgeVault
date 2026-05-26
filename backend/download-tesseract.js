@@ -15,12 +15,8 @@ const assets = [
     url: 'https://unpkg.com/tesseract.js@4.1.1/dist/worker.min.js'
   },
   {
-    name: 'tesseract-core.wasm.js',
-    url: 'https://unpkg.com/tesseract.js-core@4.0.3/tesseract-core.wasm.js'
-  },
-  {
-    name: 'tesseract-core-simd.wasm.js',
-    url: 'https://unpkg.com/tesseract.js-core@4.0.3/tesseract-core-simd.wasm.js'
+    name: 'tess-core.wasm.js',
+    url: 'https://unpkg.com/tesseract.js-core@4.0.3/tess-core.wasm.js'
   },
   {
     name: 'eng.traineddata.gz',

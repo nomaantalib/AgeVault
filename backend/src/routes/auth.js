@@ -348,7 +348,7 @@ router.get('/me', protect, async (req, res) => {
       }
 
       if (!user.qrPin) {
-        user.qrPin = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8-digit PIN
+        user.qrPin = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit passcode
         user.qrPinExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days expiry
         updated = true;
       }

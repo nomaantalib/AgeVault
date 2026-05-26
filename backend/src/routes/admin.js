@@ -83,8 +83,8 @@ router.post('/action', protect, adminOnly, async (req, res) => {
         timestamp: Math.floor(Date.now() / 1000)
       };
       user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
-      // Generate 8-digit PIN immediately so user gets it on their next dashboard load
-      user.qrPin = Math.floor(10000000 + Math.random() * 90000000).toString();
+      // Generate 6-digit passcode immediately so user gets it on their next dashboard load
+      user.qrPin = Math.floor(100000 + Math.random() * 900000).toString();
       user.qrPinExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3-day expiry
     } else {
       user.qrToken = '';

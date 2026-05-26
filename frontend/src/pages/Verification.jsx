@@ -110,6 +110,11 @@ const Verification = () => {
       setError('⚠️ Full Name is required. OCR could not extract it automatically — please enter it manually in the field below.');
       return;
     }
+    // Validate that ID Number is filled (either by OCR or manual entry)
+    if (!idNumber.trim()) {
+      setError('⚠️ ID Document Number is required. OCR could not extract it automatically — please enter it manually in the field below.');
+      return;
+    }
     const age = calculateAge(dob);
     if (age < 18) {
       setIsUnderage(true);
@@ -122,12 +127,14 @@ const Verification = () => {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [extractedName, setExtractedName] = useState('');
   const [extractedDob, setExtractedDob] = useState('');
+  const [extractedIdNumber, setExtractedIdNumber] = useState('');
   const [faceMatchConfidence, setFaceMatchConfidence] = useState(0);
   const [isFaceMatching, setIsFaceMatching] = useState(false);
 
   // Form State (Confirming Details)
   const [fullName, setFullName] = useState('');
   const [dob, setDob] = useState('');
+  const [idNumber, setIdNumber] = useState('');
 
   // UI state
   const [webcamActive, setWebcamActive] = useState(false);
@@ -237,14 +244,11 @@ const Verification = () => {
       console.log('Pre-processing document image for high-accuracy OCR...');
       const processedFile = await preprocessImageForOcr(file);
 
-      // Use self-hosted local Tesseract assets for fast, offline-ready loading
+      // Use zero-config automatic Tesseract.recognize which handles CORS and CDNs robustly
       const { data: { text } } = await Tesseract.recognize(
         processedFile,
         'eng',
         {
-          workerPath: '/tesseract/worker.min.js',
-          corePath: '/tesseract/',
-          langPath: '/tesseract',
           logger: m => console.log('Tesseract OCR status:', m)
         }
       );
@@ -252,7 +256,7 @@ const Verification = () => {
       console.log('OCR Extracted Text:', text);
 
       // Extract details using the new parser
-      const { dob: dobFound, name: nameFound } = parseOcrText(text, idType);
+      const { dob: dobFound, name: nameFound, idNumber: idNumberFound } = parseOcrText(text, idType);
 
       if (dobFound) {
         setExtractedDob(dobFound);
@@ -266,6 +270,13 @@ const Verification = () => {
         setFullName(nameFound);
       } else {
         setExtractedName('');
+      }
+
+      if (idNumberFound) {
+        setExtractedIdNumber(idNumberFound);
+        setIdNumber(idNumberFound);
+      } else {
+        setExtractedIdNumber('');
       }
     } catch (err) {
       console.error('OCR Processing Error:', err);
@@ -512,9 +523,14 @@ const Verification = () => {
     const formData = new FormData();
     formData.append('name', fullName);
     formData.append('dob', dob);
+    formData.append('idNumber', idNumber);
     formData.append('faceMatchConfidence', faceMatchConfidence);
     formData.append('idCard', idCardFile);
     formData.append('selfie', selfieFile);
+    formData.append('ocrName', extractedName);
+    formData.append('ocrDob', extractedDob);
+    formData.append('ocrIdNumber', extractedIdNumber);
+    formData.append('idType', idType);
 
     try {
       const response = await fetch(`${apiUrl}/api/verify/submit`, {
@@ -768,6 +784,10 @@ const Verification = () => {
                           <span className="text-slate-400">Extracted Name:</span>
                           <span className="text-white font-semibold">{extractedName ? extractedName : 'Not found'}</span>
                         </div>
+                        <div className="flex justify-between text-xs py-1.5 border-b border-slate-800/40">
+                          <span className="text-slate-400">Extracted ID Number:</span>
+                          <span className="text-white font-semibold font-mono">{extractedIdNumber ? extractedIdNumber : 'Not found'}</span>
+                        </div>
                       </div>
 
                       {/* Manual Confirmation Inputs in Step 1 */}
@@ -800,6 +820,19 @@ const Verification = () => {
                             className="w-full px-3.5 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none"
                           />
                         </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                            Verify/Enter ID Document Number
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="E.g., Aadhaar No, PAN, Passport No"
+                            value={idNumber}
+                            onChange={(e) => setIdNumber(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl glass-input text-white text-xs focus:outline-none font-mono"
+                          />
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -814,7 +847,7 @@ const Verification = () => {
             <div className="flex justify-end">
               <button
                 type="button"
-                disabled={!idCardFile || ocrLoading || !dob || !fullName}
+                disabled={!idCardFile || ocrLoading || !dob || !fullName || !idNumber}
                 onClick={handleProceedToSelfie}
                 className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition duration-300 shadow-md shadow-indigo-600/10 flex items-center gap-1.5"
               >
@@ -1008,6 +1041,26 @@ const Verification = () => {
                       required
                       value={dob}
                       onChange={(e) => setDob(e.target.value)}
+                      disabled={submitting}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-white text-sm font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    ID Document Number
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter ID number"
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value)}
                       disabled={submitting}
                       className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-white text-sm font-mono"
                     />

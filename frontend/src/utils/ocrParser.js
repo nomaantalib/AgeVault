@@ -218,10 +218,65 @@ export const extractDate = (text) => {
 };
 
 /**
+ * Extracts Identification Number from ID Card text based on card type
+ */
+export const extractIdNumber = (text, idType) => {
+  if (!text) return '';
+
+  const cleanText = text.toUpperCase();
+
+  // 1. Aadhaar Card (12 digits, often formatted as xxxx xxxx xxxx or xxxxxxxxxxxx)
+  if (idType === 'aadhaar') {
+    const aadhaarMatch = text.match(/\b\d{4}\s\d{4}\s\d{4}\b/) || text.match(/\b\d{12}\b/);
+    if (aadhaarMatch) {
+      return aadhaarMatch[0].trim();
+    }
+  }
+
+  // 2. PAN Card (10 alphanumeric characters: 5 letters, 4 digits, 1 letter)
+  if (idType === 'pan') {
+    const panMatch = cleanText.match(/\b[A-Z]{5}\d{4}[A-Z]\b/);
+    if (panMatch) {
+      return panMatch[0];
+    }
+  }
+
+  // 3. Passport (Typically a letter followed by 7 digits, or 8-9 alphanumeric characters)
+  if (idType === 'passport') {
+    const passportMatch = cleanText.match(/\b[A-Z]\d{7}\b/) || cleanText.match(/\b[A-Z0-9]{8,9}\b/);
+    if (passportMatch) {
+      return passportMatch[0];
+    }
+  }
+
+  // 4. Driver's License (Alphanumeric DL format)
+  if (idType === 'license') {
+    const dlMatch = cleanText.match(/\b[A-Z]{2}[-\s]?\d{2}[-\s]?\d{4}[-\s]?\d{7}\b/) || 
+                    cleanText.match(/\b[A-Z]{2}\d{13}\b/) || 
+                    cleanText.match(/\b[A-Z]{2}[-\s]?\d{2}[-\s]?\d{11}\b/);
+    if (dlMatch) {
+      return dlMatch[0];
+    }
+  }
+
+  // Generic fallback: Search for standard PAN, Aadhaar or Passport format anyway
+  const genericPan = cleanText.match(/\b[A-Z]{5}\d{4}[A-Z]\b/);
+  if (genericPan) return genericPan[0];
+
+  const genericAadhaar = text.match(/\b\d{4}\s\d{4}\s\d{4}\b/) || text.match(/\b\d{12}\b/);
+  if (genericAadhaar) return genericAadhaar[0];
+
+  const genericPassport = cleanText.match(/\b[A-Z]\d{7}\b/);
+  if (genericPassport) return genericPassport[0];
+
+  return '';
+};
+
+/**
  * Main parse entry point
  */
 export const parseOcrText = (text, idType) => {
-  if (!text) return { dob: '', name: '' };
+  if (!text) return { dob: '', name: '', idNumber: '' };
 
   const lines = text
     .split('\n')
@@ -519,5 +574,7 @@ export const parseOcrText = (text, idType) => {
     }
   }
 
-  return { dob, name };
+  const idNumber = extractIdNumber(text, idType);
+
+  return { dob, name, idNumber };
 };
