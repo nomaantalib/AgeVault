@@ -9,33 +9,28 @@ import {
 const Scanner = () => {
   const { token, apiUrl } = useAuth();
   const [scanResult, setScanResult] = useState(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(true);
   const [manualToken, setManualToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
   const scannerRef = useRef(null);
+  const qrDecoderRef = useRef(null);
+  const startTimeoutRef = useRef(null);
+  const isStartingRef = useRef(false);
+  const shouldStopRef = useRef(false);
   const scannerContainerId = 'qr-reader';
 
-  useEffect(() => {
-    // Clear scanner if component unmounts
-    return () => {
-      if (scannerRef.current) {
-        const scanner = scannerRef.current;
-        scannerRef.current = null;
-        try {
-          if (scanner.isScanning) {
-            scanner.stop().catch(err => console.error('Error stopping camera in unmount:', err));
-          }
-        } catch (e) {
-          console.error('Unmount camera cleanup error:', e);
-        }
-      }
-    };
-  }, []);
-
   const stopScanner = async () => {
+    shouldStopRef.current = true;
+    if (startTimeoutRef.current) {
+      clearTimeout(startTimeoutRef.current);
+    }
+    if (isStartingRef.current) {
+      console.log('Scanner is starting. Flagging for stop.');
+      return;
+    }
     if (scannerRef.current) {
       try {
         if (scannerRef.current.isScanning) {
@@ -50,6 +45,10 @@ const Scanner = () => {
   };
 
   const stopScannerAndVerify = async (decodedText) => {
+    shouldStopRef.current = true;
+    if (startTimeoutRef.current) {
+      clearTimeout(startTimeoutRef.current);
+    }
     if (scannerRef.current) {
       try {
         if (scannerRef.current.isScanning) {
@@ -64,57 +63,250 @@ const Scanner = () => {
     verifyScannedToken(decodedText);
   };
 
+  const scanCurrentFrame = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const video = document.querySelector(`#${scannerContainerId} video`);
+      if (!video) {
+        throw new Error('Video stream element not found. Make sure the camera is started.');
+      }
+
+      // Initialize the static/dedicated QR decoder instance on a hidden DOM element if not already present.
+      // This is run independently of the live camera stream instance (scannerRef.current)
+      // to cleanly bypass "Cannot start file scan - ongoing camera scan" lockouts!
+      if (!qrDecoderRef.current) {
+        let dummyContainer = document.getElementById('qr-decoder-dummy');
+        if (!dummyContainer) {
+          dummyContainer = document.createElement('div');
+          dummyContainer.id = 'qr-decoder-dummy';
+          dummyContainer.style.position = 'absolute';
+          dummyContainer.style.width = '1px';
+          dummyContainer.style.height = '1px';
+          dummyContainer.style.opacity = '0';
+          dummyContainer.style.pointerEvents = 'none';
+          document.body.appendChild(dummyContainer);
+        }
+        qrDecoderRef.current = new Html5Qrcode('qr-decoder-dummy');
+      }
+
+      let maxAttempts = 5;
+      let attempt = 0;
+      let decodedText = null;
+
+      // Promise helper to capture the video frame, crop to viewfinder box, apply robust filters, and decode
+      const tryCaptureAndDecode = (attemptIndex) => {
+        return new Promise((resolve, reject) => {
+          if (!video) {
+            reject(new Error('Video feed element not found.'));
+            return;
+          }
+
+          const videoWidth = video.videoWidth || video.offsetWidth || 640;
+          const videoHeight = video.videoHeight || video.offsetHeight || 480;
+          
+          const minEdge = Math.min(videoWidth, videoHeight);
+          const qrboxSize = Math.floor(minEdge * 0.75); // 75% size to allow easier focus
+          
+          const sx = (videoWidth - qrboxSize) / 2;
+          const sy = (videoHeight - qrboxSize) / 2;
+          
+          const canvas = document.createElement('canvas');
+          
+          // Crop to viewfinder center region for attempts 0, 1, 2 to remove background noise.
+          // Fallback to full frame for attempts 3, 4 just in case.
+          const useCrop = attemptIndex < 3;
+          
+          if (useCrop) {
+            canvas.width = qrboxSize;
+            canvas.height = qrboxSize;
+          } else {
+            canvas.width = videoWidth;
+            canvas.height = videoHeight;
+          }
+          
+          const ctx = canvas.getContext('2d');
+          
+          if (useCrop) {
+            ctx.drawImage(video, sx, sy, qrboxSize, qrboxSize, 0, 0, qrboxSize, qrboxSize);
+          } else {
+            ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+          }
+          
+          // Apply pre-processing filters based on attempt index to handle glare, reflections, and contrast issues
+          if (attemptIndex === 1) {
+            // Attempt 2: Slight contrast enhancement
+            ctx.filter = 'contrast(1.25)';
+            ctx.drawImage(canvas, 0, 0);
+          } else if (attemptIndex === 2) {
+            // Attempt 3: Grayscale and contrast boost
+            ctx.filter = 'grayscale(1) contrast(1.4)';
+            ctx.drawImage(canvas, 0, 0);
+          } else if (attemptIndex === 4) {
+            // Attempt 5: Full frame grayscale
+            ctx.filter = 'grayscale(1)';
+            ctx.drawImage(canvas, 0, 0);
+          }
+
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              reject(new Error('Failed to capture blob.'));
+              return;
+            }
+            const file = new File([blob], 'frame.jpg', { type: 'image/jpeg' });
+            try {
+              if (!qrDecoderRef.current) {
+                reject(new Error('Decoder instance is missing.'));
+                return;
+              }
+              const text = await qrDecoderRef.current.scanFile(file, false);
+              resolve(text);
+            } catch (err) {
+              reject(err);
+            }
+          }, 'image/jpeg', 0.95);
+        });
+      };
+
+      // Run up to 5 attempts in a rapid 1-second burst to handle autofocus and motion blur
+      const runBurstAttempts = async () => {
+        while (attempt < maxAttempts) {
+          attempt++;
+          console.log(`Scan attempt ${attempt}/${maxAttempts} in progress...`);
+          try {
+            decodedText = await tryCaptureAndDecode(attempt - 1);
+            if (decodedText) {
+              console.log('Successfully decoded QR code in attempt:', attempt);
+              break;
+            }
+          } catch (err) {
+            console.log(`Attempt ${attempt} failed to decode:`, err.message || err);
+            if (attempt < maxAttempts) {
+              await new Promise(r => setTimeout(r, 180)); // 180ms delay between burst snapshots
+            }
+          }
+        }
+
+        if (decodedText) {
+          // Success: Stop the live camera feed and verify the token
+          await stopScanner();
+          verifyScannedToken(decodedText);
+        } else {
+          // Failure feedback to user
+          setError('Failed to scan QR code. Please hold it steady in front of the camera and try again.');
+          setLoading(false);
+        }
+      };
+
+      runBurstAttempts();
+
+    } catch (err) {
+      console.error('Frame capture error:', err);
+      setError(err.message || 'Failed to capture and scan video frame.');
+      setLoading(false);
+    }
+  };
+
   const startScanner = () => {
     setError('');
     setScanResult(null);
     setScanning(true);
+    shouldStopRef.current = false;
 
-    // Wait a brief tick for the container DOM to render
-    setTimeout(async () => {
+    if (startTimeoutRef.current) {
+      clearTimeout(startTimeoutRef.current);
+    }
+
+    startTimeoutRef.current = setTimeout(async () => {
+      if (shouldStopRef.current) return;
+
       try {
+        const container = document.getElementById(scannerContainerId);
+        if (!container) {
+          console.warn('Scanner container not found in DOM yet. Retrying...');
+          return;
+        }
+
+        // Clean up any existing running scanner before starting a new one
+        if (scannerRef.current) {
+          try {
+            if (scannerRef.current.isScanning) {
+              await scannerRef.current.stop();
+            }
+          } catch (e) {
+            console.warn('Error stopping previous scanner instance:', e);
+          }
+          scannerRef.current = null;
+        }
+
+        if (shouldStopRef.current) return;
+
         const html5QrCode = new Html5Qrcode(scannerContainerId);
         scannerRef.current = html5QrCode;
+        isStartingRef.current = true;
 
         const config = { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
+          fps: 15, // Efficient scan frequency (15 scans/sec) prevents main thread lagging/freezing
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdge * 0.75); // 75% size to allow easier focus
+            return { width: qrboxSize, height: qrboxSize };
+          },
           aspectRatio: 1.0
         };
 
-        // Try environment camera first
-        await html5QrCode.start(
-          { facingMode: 'environment' },
-          config,
-          (decodedText) => {
-            stopScannerAndVerify(decodedText);
-          },
-          (errorMessage) => {
-            // Ignore normal frame scan failures
-          }
-        );
-      } catch (err) {
-        console.warn('Failed to start environment camera, attempting user facing camera fallback...', err);
+        const cameraConstraints = {
+          facingMode: 'environment',
+          frameRate: { ideal: 60 } // Request buttery smooth high-speed video capture
+        };
+
         try {
-          if (scannerRef.current) {
-            await scannerRef.current.start(
-              { facingMode: 'user' },
-              { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-              (decodedText) => {
-                stopScannerAndVerify(decodedText);
-              },
-              () => {}
-            );
+          await html5QrCode.start(
+            cameraConstraints,
+            config,
+            (decodedText) => {
+              stopScannerAndVerify(decodedText);
+            },
+            () => {}
+          );
+        } catch (envErr) {
+          console.warn('Environment camera failed, trying user camera...', envErr);
+          if (shouldStopRef.current) {
+            try { await html5QrCode.stop(); } catch(e){}
             return;
           }
-        } catch (innerErr) {
-          console.error('All camera attempts failed:', innerErr);
+          await html5QrCode.start(
+            { facingMode: 'user', frameRate: { ideal: 60 } },
+            config,
+            (decodedText) => {
+              stopScannerAndVerify(decodedText);
+            },
+            () => {}
+          );
         }
+
+        isStartingRef.current = false;
+        if (shouldStopRef.current) {
+          await stopScanner();
+        }
+      } catch (err) {
+        console.error('All camera attempts failed:', err);
         setError('Failed to start camera. Please verify permissions are granted and camera is available.');
         setScanning(false);
         scannerRef.current = null;
+        isStartingRef.current = false;
       }
-    }, 150);
+    }, 200); // 200ms debounce ensures StrictMode double mounts are fully resolved
   };
+
+  // Automatically start scanner on mount, and cleanly stop on unmount
+  useEffect(() => {
+    startScanner();
+    return () => {
+      stopScanner();
+    };
+  }, []);
 
   const verifyScannedToken = async (qrTokenToVerify) => {
     setLoading(true);
@@ -208,10 +400,31 @@ const Scanner = () => {
 
             <div className="relative rounded-2xl overflow-hidden bg-slate-950/40 border border-slate-800 flex flex-col items-center justify-center min-h-[220px]">
               {scanning ? (
-                <div className="w-full relative">
-                  <div id={scannerContainerId} className="w-full overflow-hidden"></div>
+                <div className="w-full relative p-2 flex flex-col items-center">
+                  <div id={scannerContainerId} className="w-full overflow-hidden rounded-xl"></div>
                   {/* Scan line effect */}
                   <div className="absolute left-0 right-0 h-0.5 bg-indigo-500 shadow-md animate-bounce pointer-events-none"></div>
+                  
+                  {/* Action buttons */}
+                  <div className="flex gap-2 w-full mt-3">
+                    <button
+                      type="button"
+                      onClick={scanCurrentFrame}
+                      disabled={loading}
+                      className="flex-1 px-4.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-lg transition duration-200 flex items-center justify-center gap-1.5"
+                    >
+                      <Scan className="w-4 h-4" />
+                      Scan & Verify QR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopScanner}
+                      disabled={loading}
+                      className="px-4.5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-lg transition duration-200"
+                    >
+                      Stop Camera
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 flex flex-col items-center text-center space-y-4">
@@ -220,6 +433,7 @@ const Scanner = () => {
                     Click below to open the camera scanner interface.
                   </p>
                   <button
+                    type="button"
                     onClick={startScanner}
                     disabled={loading}
                     className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-lg text-white transition duration-200"
@@ -387,7 +601,7 @@ const Scanner = () => {
 
               {/* Reset scan button */}
               <button
-                onClick={() => setScanResult(null)}
+                onClick={() => { setScanResult(null); startScanner(); }}
                 className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition duration-200"
               >
                 Scan Next Customer

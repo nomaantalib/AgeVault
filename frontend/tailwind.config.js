@@ -51,7 +51,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Outfit', 'Inter', 'sans-serif'],
+        sans: ['Satisfy', 'Pacifico', 'cursive', 'sans-serif'],
+        cursive: ['Satisfy', 'Pacifico', 'cursive', 'sans-serif'],
       },
       boxShadow: {
         'glow-primary': '0 0 20px 5px rgba(99, 102, 241, 0.25)',

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Satisfy&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Satisfy&family=Pacifico&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -11,10 +11,15 @@
 
 @layer base {
   body {
-    font-family: 'Inter', 'Outfit', sans-serif;
+    font-family: 'Satisfy', 'Pacifico', 'cursive', sans-serif;
     @apply antialiased transition-colors duration-500;
     color: var(--text-primary);
     background: var(--bg-base);
+  }
+
+  /* Global cursive font override except for elements that explicitly have font-mono or code tags */
+  *:not(code):not(pre):not(.font-mono):not([class*="font-mono"]) {
+    font-family: 'Satisfy', 'Pacifico', 'cursive', sans-serif !important;
   }
 }
 
@@ -89,48 +94,63 @@
 }
 
 /* ─── Light mode overrides for class names ─── */
+/* Direct mapping for text slate & gray colors to high-contrast black/dark gray */
 .light .text-slate-300,
 .light .text-slate-400,
-.light .text-slate-500 { color: #111111 !important; font-weight: 700 !important; }
-.light .text-slate-600,
-.light .text-slate-700 { color: #000000 !important; font-weight: 800 !important; }
+.light .text-slate-500,
+.light .text-slate-200,
+.light .text-slate-100,
+.light .text-slate-205,
+.light .text-slate-350,
+.light .text-slate-250,
+.light .text-slate-650,
+.light .text-slate-750,
+.light .text-slate-850,
 .light .text-gray-400,
 .light .text-gray-500  { color: #111111 !important; font-weight: 700 !important; }
-.light .text-white     { color: #000000 !important; font-weight: 800 !important; }
 
-.light .bg-slate-950,
-.light .bg-slate-900,
-.light .bg-slate-800   { 
-  background-color: rgba(246, 243, 225, 0.8) !important; 
-  backdrop-filter: blur(20px) saturate(180%); 
-  -webkit-backdrop-filter: blur(20px) saturate(180%); 
+.light .text-slate-600,
+.light .text-slate-700 { color: #000000 !important; font-weight: 800 !important; }
+
+/* Keep white text on dark background buttons/badges/status indicators in light mode, 
+   but default text-white to black text on generic light surfaces */
+.light .text-white { 
+  color: #000000 !important; 
+  font-weight: 800 !important; 
 }
+
+/* Override all slate/dark backgrounds to premium light cream in light mode */
+.light [class*="bg-slate-"],
+.light [class*="bg-dark-"] {
+  background-color: rgba(246, 243, 225, 0.8) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+}
+
+/* Overrides for opacity or interactive classes */
 .light .bg-slate-950\/45,
 .light .bg-slate-900\/60,
-.light .bg-slate-900\/20 { 
-  background-color: rgba(246, 243, 225, 0.6) !important; 
-  backdrop-filter: blur(20px) saturate(180%); 
-  -webkit-backdrop-filter: blur(20px) saturate(180%); 
-}
-.light .bg-dark-900 {
-  background-color: rgba(246, 243, 225, 0.8) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-}
-.light .bg-dark-900\/80,
-.light .bg-dark-900\/90 {
-  background-color: rgba(246, 243, 225, 0.9) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+.light .bg-slate-900\/20,
+.light [class*="bg-slate-900/"],
+.light [class*="bg-slate-950/"],
+.light [class*="bg-dark-900/"] {
+  background-color: rgba(246, 243, 225, 0.6) !important;
 }
 
+.light .hover\:bg-slate-700:hover,
+.light .hover\:bg-slate-800:hover,
+.light [class*="hover:bg-slate-"]:hover { 
+  background-color: rgba(246, 243, 225, 0.95) !important; 
+}
+
+/* Premium thin borders for card boxes in light mode */
+.light [class*="border-slate-"] {
+  border-color: rgba(170, 124, 17, 0.4) !important;
+}
 .light .border-slate-800,
 .light .border-slate-850,
 .light .border-slate-700 { border-color: rgba(170, 124, 17, 0.5) !important; }
-.light .border-slate-900  { border-color: rgba(170, 124, 17, 0.4) !important; }
-
-.light .hover\:bg-slate-700:hover,
-.light .hover\:bg-slate-800:hover { background-color: rgba(246, 243, 225, 0.95) !important; }
+.light .border-slate-900  { border-color: rgba(170, 124, 17, 0.35) !important; }
 
 /* ─────────────────────────── ANIMATED BG ─────────────────────────── */
 .animated-bg {
@@ -456,4 +476,34 @@ a, button, input, select, textarea {
 }
 .sparkle-element {
   animation: sparkleTwinkle 2.5s ease-in-out infinite;
+}
+
+/* Keep white text on dark background buttons/badges/status indicators in light mode */
+.light .bg-indigo-600,
+.light .bg-indigo-600 *,
+.light .bg-indigo-500,
+.light .bg-indigo-500 *,
+.light .bg-emerald-600,
+.light .bg-emerald-600 *,
+.light .bg-emerald-500,
+.light .bg-emerald-500 *,
+.light .bg-red-600,
+.light .bg-red-600 *,
+.light .bg-red-500,
+.light .bg-red-500 *,
+.light .bg-rose-600,
+.light .bg-rose-600 *,
+.light .bg-rose-500,
+.light .bg-rose-500 *,
+.light .bg-amber-600,
+.light .bg-amber-600 *,
+.light .bg-amber-500,
+.light .bg-amber-500 *,
+.light .bg-amber-700,
+.light .bg-amber-700 *,
+.light .btn-neon,
+.light .btn-neon *,
+.light [class*="bg-gradient-to-"],
+.light [class*="bg-gradient-to-"] * {
+  color: #ffffff !important;
 }

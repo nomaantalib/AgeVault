@@ -136,12 +136,12 @@ const Verification = () => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Load face-api models on mount (using free, reliable CDN hosting from GitHub weights repository)
+  // Load face-api models on mount (using local models stored in public/models for 100% reliability and speed)
   useEffect(() => {
     const loadModels = async () => {
       try {
-        setLoadingMsg('Loading Face Detection Models...');
-        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+        setLoadingMsg('Loading local VIP FaceMatcher...');
+        const MODEL_URL = '/models';
         // Load ssdMobilenetv1, tinyFaceDetector, faceLandmark, and faceRecognition models
         await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
@@ -150,7 +150,7 @@ const Verification = () => {
         setModelsLoaded(true);
       } catch (err) {
         console.error('Error loading face-api models:', err);
-        setError('Failed to load face detection models from CDN. Please refresh the page.');
+        setError('Failed to load local face detection models. Please refresh the page.');
       }
     };
     loadModels();
@@ -170,19 +170,76 @@ const Verification = () => {
     setWebcamActive(false);
   };
 
+  // High-accuracy OCR image pre-processing: Grayscale, Contrast Boosting & Adaptive Binarization Thresholding
+  const preprocessImageForOcr = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          // Apply high-contrast grayscale and binarization threshold filters
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            
+            // Calculate luminance (grayscale)
+            let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+            
+            // Boost Contrast by 30% to sharpen text details
+            const contrast = 30;
+            const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+            gray = factor * (gray - 128) + 128;
+            
+            // Apply binarization threshold: 
+            // values below 128 become black, values above become white.
+            // This isolates text characters cleanly from government ID backgrounds,
+            // removing complex watermarks, textures, or holographic stamps.
+            const finalColor = gray < 128 ? 0 : 255;
+            
+            data[i] = finalColor;
+            data[i+1] = finalColor;
+            data[i+2] = finalColor;
+          }
+          
+          ctx.putImageData(imageData, 0, 0);
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(file); // Fallback to original file if blob fails
+              return;
+            }
+            const processedFile = new File([blob], 'processed_doc.jpg', { type: 'image/jpeg' });
+            resolve(processedFile);
+          }, 'image/jpeg', 0.95);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // OCR Parser logic
   const runOCR = async (file) => {
     setOcrLoading(true);
     setError('');
     try {
-      // Use zero-config Tesseract.recognize helper which auto-manages worker lifecycle
+      console.log('Pre-processing document image for high-accuracy OCR...');
+      const processedFile = await preprocessImageForOcr(file);
+
+      // Use zero-config automatic Tesseract.recognize which handles CORS and CDNs robustly
       const { data: { text } } = await Tesseract.recognize(
-        file,
+        processedFile,
         'eng',
         {
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
-          langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.1/tesseract-core.wasm.js',
           logger: m => console.log('Tesseract OCR status:', m)
         }
       );
@@ -305,30 +362,30 @@ const Verification = () => {
       selfieImg.src = selfieImgSrc;
       await selfieImg.decode();
 
-      // 2. Detect face and extract descriptor from ID Card (try high-accuracy SSD first, fallback to Tiny)
+      // 2. Detect face and extract descriptor from ID Card (SSD with confidence fallback, then Tiny)
       let idResult = await faceapi
-        .detectSingleFace(idImg, new faceapi.SsdMobilenetv1Options())
+        .detectSingleFace(idImg, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
         .withFaceLandmarks()
         .withFaceDescriptor();
 
       if (!idResult) {
         console.log('SSD Mobilenet face detection failed on ID card. Trying TinyFaceDetector fallback...');
         idResult = await faceapi
-          .detectSingleFace(idImg, new faceapi.TinyFaceDetectorOptions())
+          .detectSingleFace(idImg, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.2 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
       }
 
-      // 3. Detect face and extract descriptor from Selfie (try high-accuracy SSD first, fallback to Tiny)
+      // 3. Detect face and extract descriptor from Selfie (SSD with confidence fallback, then Tiny)
       let selfieResult = await faceapi
-        .detectSingleFace(selfieImg, new faceapi.SsdMobilenetv1Options())
+        .detectSingleFace(selfieImg, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 }))
         .withFaceLandmarks()
         .withFaceDescriptor();
 
       if (!selfieResult) {
         console.log('SSD Mobilenet face detection failed on Selfie. Trying TinyFaceDetector fallback...');
         selfieResult = await faceapi
-          .detectSingleFace(selfieImg, new faceapi.TinyFaceDetectorOptions())
+          .detectSingleFace(selfieImg, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.2 }))
           .withFaceLandmarks()
           .withFaceDescriptor();
       }
@@ -387,7 +444,13 @@ const Verification = () => {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
+    
+    // Mirror the captured image horizontally to match the mirrored camera preview
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, width, height);
+    // Reset transform context
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // Save image blob and URL preview with 30% compression quality for least storage occupancy
     canvas.toBlob(async (blob) => {
@@ -772,6 +835,7 @@ const Verification = () => {
                       playsInline 
                       muted 
                       className="w-full h-[260px] object-cover"
+                      style={{ transform: 'scaleX(-1)' }}
                     />
                     <div className="absolute inset-0 border border-indigo-500/30 pointer-events-none rounded-2xl flex items-center justify-center">
                       {/* Interactive scanning frame */}
