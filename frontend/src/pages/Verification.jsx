@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as faceapi from '@vladmandic/face-api';
-import { createWorker } from 'tesseract.js';
+import Tesseract from 'tesseract.js';
 import confetti from 'canvas-confetti';
 import { 
   ShieldCheck, Upload, Camera, FileText, CheckCircle2, 
@@ -174,17 +174,17 @@ const Verification = () => {
     setOcrLoading(true);
     setError('');
     try {
-      // Create worker with explicit CDN paths to prevent load failure in different environments
-      const worker = await createWorker({
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
-        langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.1/tesseract-core.wasm.js',
-        logger: m => console.log('Tesseract OCR status:', m)
-      });
-      await worker.loadLanguage('eng');
-      await worker.initialize('eng');
-      const { data: { text } } = await worker.recognize(file);
-      await worker.terminate();
+      // Use zero-config Tesseract.recognize helper which auto-manages worker lifecycle
+      const { data: { text } } = await Tesseract.recognize(
+        file,
+        'eng',
+        {
+          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
+          langPath: 'https://cdn.jsdelivr.net/gh/naptha/tessdata@gh-pages/4.0.0',
+          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.1/tesseract-core.wasm.js',
+          logger: m => console.log('Tesseract OCR status:', m)
+        }
+      );
 
       console.log('OCR Extracted Text:', text);
 

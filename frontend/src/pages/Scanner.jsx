@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { 
   Scan, CheckCircle, XCircle, ShieldAlert, ArrowRight, 
   Smartphone, User, Calendar, Award, Copy, Check, X 
@@ -21,31 +21,47 @@ const Scanner = () => {
   useEffect(() => {
     // Clear scanner if component unmounts
     return () => {
-      stopScanner();
+      if (scannerRef.current) {
+        const scanner = scannerRef.current;
+        scannerRef.current = null;
+        try {
+          if (scanner.isScanning) {
+            scanner.stop().catch(err => console.error('Error stopping camera in unmount:', err));
+          }
+        } catch (e) {
+          console.error('Unmount camera cleanup error:', e);
+        }
+      }
     };
   }, []);
 
-  const stopScanner = () => {
+  const stopScanner = async () => {
     if (scannerRef.current) {
       try {
-        scannerRef.current.clear()
-          .then(() => {
-            scannerRef.current = null;
-            setScanning(false);
-          })
-          .catch((err) => {
-            console.error('Error clearing QR scanner:', err);
-            scannerRef.current = null;
-            setScanning(false);
-          });
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
       } catch (err) {
-        console.error('Error clearing QR scanner sync:', err);
-        scannerRef.current = null;
-        setScanning(false);
+        console.error('Error stopping scanner:', err);
       }
-    } else {
-      setScanning(false);
+      scannerRef.current = null;
     }
+    setScanning(false);
+  };
+
+  const stopScannerAndVerify = async (decodedText) => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+      } catch (err) {
+        console.error('Error stopping scanner on success:', err);
+      }
+      scannerRef.current = null;
+    }
+    setScanning(false);
+    verifyScannedToken(decodedText);
   };
 
   const startScanner = () => {
@@ -54,51 +70,50 @@ const Scanner = () => {
     setScanning(true);
 
     // Wait a brief tick for the container DOM to render
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const scanner = new Html5QrcodeScanner(
-          scannerContainerId,
-          { 
-            fps: 10, 
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0 
-          },
-          /* verbose= */ false
-        );
+        const html5QrCode = new Html5Qrcode(scannerContainerId);
+        scannerRef.current = html5QrCode;
 
-        scanner.render(
+        const config = { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        };
+
+        // Try environment camera first
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          config,
           (decodedText) => {
-            // On successful scan - wait for stop promise before removing DOM container
-            if (scannerRef.current) {
-              scannerRef.current.clear()
-                .then(() => {
-                  scannerRef.current = null;
-                  setScanning(false);
-                  verifyScannedToken(decodedText);
-                })
-                .catch((err) => {
-                  console.error('Failed to clear scanner on success:', err);
-                  scannerRef.current = null;
-                  setScanning(false);
-                  verifyScannedToken(decodedText);
-                });
-            } else {
-              setScanning(false);
-              verifyScannedToken(decodedText);
-            }
+            stopScannerAndVerify(decodedText);
           },
           (errorMessage) => {
-            // Verbose logging of frame scan failures can be ignored
+            // Ignore normal frame scan failures
           }
         );
-
-        scannerRef.current = scanner;
       } catch (err) {
-        console.error('Failed to initialize QR scanner:', err);
-        setError('Failed to start camera scanner. Use the manual entry code box below.');
+        console.warn('Failed to start environment camera, attempting user facing camera fallback...', err);
+        try {
+          if (scannerRef.current) {
+            await scannerRef.current.start(
+              { facingMode: 'user' },
+              { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+              (decodedText) => {
+                stopScannerAndVerify(decodedText);
+              },
+              () => {}
+            );
+            return;
+          }
+        } catch (innerErr) {
+          console.error('All camera attempts failed:', innerErr);
+        }
+        setError('Failed to start camera. Please verify permissions are granted and camera is available.');
         setScanning(false);
+        scannerRef.current = null;
       }
-    }, 100);
+    }, 150);
   };
 
   const verifyScannedToken = async (qrTokenToVerify) => {
