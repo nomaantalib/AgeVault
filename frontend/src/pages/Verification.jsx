@@ -100,12 +100,12 @@ const Verification = () => {
 
   const handleProceedToSelfie = () => {
     setError('');
-    if (!dob) {
-      setError('Please enter or confirm your date of birth before proceeding.');
+    if (!extractedDob || !dob) {
+      setError('⚠️ OCR Failure: Date of Birth could not be extracted from this ID document. Please upload a clearer, well-lit document image.');
       return;
     }
-    if (!fullName.trim()) {
-      setError('Please enter or confirm your full name before proceeding.');
+    if (!extractedName || !fullName.trim()) {
+      setError('⚠️ OCR Failure: Full Name could not be extracted from this ID document. Please upload a clearer, well-lit document image.');
       return;
     }
     const age = calculateAge(dob);
@@ -945,13 +945,13 @@ const Verification = () => {
                   <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold block mb-1">
                     AI Face-Match Score
                   </span>
-                  <div className={`text-4xl font-extrabold tracking-tight ${faceMatchConfidence >= 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <div className={`text-4xl font-extrabold tracking-tight ${faceMatchConfidence >= 20 ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {faceMatchConfidence}%
                   </div>
                   <div className="mt-2.5 flex items-center justify-center gap-1">
-                    <span className={`w-2.5 h-2.5 rounded-full ${faceMatchConfidence >= 30 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${faceMatchConfidence >= 20 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {faceMatchConfidence >= 30 
+                      {faceMatchConfidence >= 20 
                         ? 'Confidence Match (Eligible for Auto-Verification)' 
                         : 'Face mismatch or low resolution. Pending manual admin approval.'}
                     </span>
@@ -1000,11 +1000,11 @@ const Verification = () => {
                   </div>
                 </div>
 
-                {faceMatchConfidence < 30 && (
+                {faceMatchConfidence < 20 && (
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[10px] rounded-xl flex items-start gap-2 leading-relaxed">
                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                     <span>
-                      Since the match score is below 30%, your request will be queued in the **Pending Admin Review Queue**. Club admins can manually override and verify you shortly.
+                      Since the match score is below 20%, your request will be queued in the **Pending Admin Review Queue**. Club admins can manually override and verify you shortly.
                     </span>
                   </div>
                 )}
