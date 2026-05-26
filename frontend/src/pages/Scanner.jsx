@@ -298,7 +298,32 @@ const Scanner = () => {
         }
       } catch (err) {
         console.error('All camera attempts failed:', err);
-        setError('Failed to start camera. Please verify permissions are granted and camera is available.');
+        
+        let customMessage = 'Failed to start camera. Please verify permissions are granted and camera is available.';
+        
+        // Premium diagnostics to pinpoint camera access failures
+        if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          customMessage = '🔒 Security Block: Camera access is disabled on insecure HTTP connections. Please run on localhost or connect via HTTPS.';
+        } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          customMessage = '🚫 Browser Block: Your browser or in-app view does not support camera capture streams.';
+        } else if (err) {
+          const errName = err.name || '';
+          const errMsg = err.message || '';
+          
+          if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+            customMessage = '🔑 Permission Denied: Camera access was blocked. Please check your browser address bar and grant camera permissions.';
+          } else if (errName === 'NotReadableError' || errName === 'TrackStartError' || errMsg.includes('in use') || errMsg.includes('active')) {
+            customMessage = '📷 Camera Lockout: The webcam is locked by another tab or program (e.g., Zoom, Teams). Close other video apps and retry.';
+          } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+            customMessage = '🔌 Webcam Missing: No video input hardware detected. Please connect a camera and try again.';
+          } else if (errName === 'OverconstrainedError') {
+            customMessage = '⚙️ Configuration Error: High-speed video constraints are not supported by your camera hardware.';
+          } else {
+            customMessage = `⚠️ Hardware Error: ${errMsg || errName || 'Unknown camera stream exception occurred.'}`;
+          }
+        }
+        
+        setError(customMessage);
         setScanning(false);
         scannerRef.current = null;
       }
