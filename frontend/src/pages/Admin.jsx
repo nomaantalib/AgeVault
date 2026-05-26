@@ -76,6 +76,8 @@ const Admin = () => {
   const [eventLoading, setEventLoading] = useState(false);
   const [eventError, setEventError] = useState('');
   const [eventSuccess, setEventSuccess] = useState('');
+  // Guard: if admin has touched the event form, don't overwrite it on background data refresh
+  const [eventFormDirty, setEventFormDirty] = useState(false);
   
   // CRUD states
   const [showUserModal, setShowUserModal] = useState(false);
@@ -124,25 +126,27 @@ const Admin = () => {
         setAllUsers(usersData.users);
       }
 
-      // 4. Fetch Active Event details
-      const eventRes = await fetch(`${apiUrl}/api/admin/event`);
-      const eventData = await eventRes.json();
-      if (eventData.success && eventData.event) {
-        setActiveEvent(eventData.event);
-        setEventTitle(eventData.event.title);
-        setEventVenue(eventData.event.venue);
-        setEventDescription(eventData.event.description || '');
-        
-        // Format date to local string suitable for datetime-local input
-        const dt = new Date(eventData.event.dateTime);
-        const formattedDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        setEventDateTime(formattedDt);
-      } else {
-        setActiveEvent(null);
-        setEventTitle('');
-        setEventVenue('');
-        setEventDescription('');
-        setEventDateTime('');
+      // 4. Fetch Active Event details — only update form if admin hasn't started editing
+      if (!eventFormDirty) {
+        const eventRes = await fetch(`${apiUrl}/api/admin/event`);
+        const eventData = await eventRes.json();
+        if (eventData.success && eventData.event) {
+          setActiveEvent(eventData.event);
+          setEventTitle(eventData.event.title);
+          setEventVenue(eventData.event.venue);
+          setEventDescription(eventData.event.description || '');
+          
+          // Format date to local string suitable for datetime-local input
+          const dt = new Date(eventData.event.dateTime);
+          const formattedDt = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          setEventDateTime(formattedDt);
+        } else {
+          setActiveEvent(null);
+          setEventTitle('');
+          setEventVenue('');
+          setEventDescription('');
+          setEventDateTime('');
+        }
       }
 
       // 5. Fetch all events list (history)
@@ -196,6 +200,7 @@ const Admin = () => {
       if (data.success) {
         setEventSuccess(data.message || 'Event scheduled successfully!');
         setActiveEvent(data.event);
+        setEventFormDirty(false); // Reset dirty flag so next refresh can update the form
         fetchDashboardData();
       } else {
         setEventError(data.message || 'Failed to schedule event.');
@@ -1108,7 +1113,7 @@ const Admin = () => {
                   required
                   placeholder="e.g. Saturday Retro Glow Night"
                   value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
+                  onChange={(e) => { setEventTitle(e.target.value); setEventFormDirty(true); }}
                   disabled={eventLoading}
                   className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none"
                 />
@@ -1123,7 +1128,7 @@ const Admin = () => {
                     type="datetime-local"
                     required
                     value={eventDateTime}
-                    onChange={(e) => setEventDateTime(e.target.value)}
+                    onChange={(e) => { setEventDateTime(e.target.value); setEventFormDirty(true); }}
                     disabled={eventLoading}
                     className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none font-mono bg-dark-900"
                   />
@@ -1138,7 +1143,7 @@ const Admin = () => {
                     required
                     placeholder="e.g. VIP Main Entrance"
                     value={eventVenue}
-                    onChange={(e) => setEventVenue(e.target.value)}
+                    onChange={(e) => { setEventVenue(e.target.value); setEventFormDirty(true); }}
                     disabled={eventLoading}
                     className="w-full px-3.5 py-3 rounded-xl glass-input text-white text-xs focus:outline-none"
                   />
@@ -1170,7 +1175,7 @@ const Admin = () => {
                 <textarea
                   placeholder="e.g. Doors open at 9 PM. Age limit 18+. Pre-register here to get your pass scanned."
                   value={eventDescription}
-                  onChange={(e) => setEventDescription(e.target.value)}
+                  onChange={(e) => { setEventDescription(e.target.value); setEventFormDirty(true); }}
                   disabled={eventLoading}
                   rows={4}
                   className="w-full p-3 text-xs rounded-xl glass-input text-white focus:outline-none"

@@ -446,23 +446,26 @@ const Login = () => {
 
               <div id="google-signin-btn" className="flex justify-center my-3 hover:scale-110 active:scale-95 transition-all duration-300"></div>
 
-              {/* Developer fallback/bypass to log in immediately */}
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSimulatedGoogleLogin('mohdnomaantalib@gmail.com', 'Nomaan Talib')}
-                  className="py-2 text-[8px] uppercase tracking-wider font-extrabold rounded-lg border border-amber-500/20 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 transition"
-                >
-                  👑 Admin Bypass
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulatedGoogleLogin('staff@agevault.com', 'Staff Member')}
-                  className="py-2 text-[8px] uppercase tracking-wider font-extrabold rounded-lg border border-amber-500/20 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 transition"
-                >
-                  🎭 Staff Bypass
-                </button>
-              </div>
+
+              {/* Developer fallback/bypass — only visible in local development mode */}
+              {import.meta.env.DEV && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSimulatedGoogleLogin('mohdnomaantalib@gmail.com', 'Nomaan Talib')}
+                    className="py-2 text-[8px] uppercase tracking-wider font-extrabold rounded-lg border border-amber-500/20 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 transition"
+                  >
+                    👑 Admin Bypass
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSimulatedGoogleLogin('staff@agevault.com', 'Staff Member')}
+                    className="py-2 text-[8px] uppercase tracking-wider font-extrabold rounded-lg border border-amber-500/20 hover:border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 text-amber-400 transition"
+                  >
+                    🎭 Staff Bypass
+                  </button>
+                </div>
+              )}
             </form>
           )}
 

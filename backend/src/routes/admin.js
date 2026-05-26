@@ -72,7 +72,7 @@ router.post('/action', protect, adminOnly, async (req, res) => {
       user.qrScanned = false;
     }
 
-    // Regenerate Signed JWT token ONLY if verified
+    // Regenerate Signed JWT token + PIN ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
     if (user.status === 'verified') {
       const qrPayload = {
@@ -83,8 +83,13 @@ router.post('/action', protect, adminOnly, async (req, res) => {
         timestamp: Math.floor(Date.now() / 1000)
       };
       user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
+      // Generate 8-digit PIN immediately so user gets it on their next dashboard load
+      user.qrPin = Math.floor(10000000 + Math.random() * 90000000).toString();
+      user.qrPinExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3-day expiry
     } else {
       user.qrToken = '';
+      user.qrPin = '';
+      user.qrPinExpires = undefined;
     }
 
     await user.save();
@@ -139,11 +144,14 @@ router.post('/users', protect, adminOnly, async (req, res) => {
       hashedPassword = await bcrypt.hash(password, salt);
     }
 
+    // Force role to 'user' or 'club' only — 'admin' cannot be created via API
+    const safeRole = (role === 'admin') ? 'user' : (role || 'user');
+
     const newUser = new User({
       phone,
       name: name || '',
       email: email || '',
-      role: role || 'user',
+      role: safeRole,
       status: status || 'pending',
       dob: dob ? new Date(dob) : undefined,
       age: age || undefined,
@@ -160,7 +168,7 @@ router.post('/users', protect, adminOnly, async (req, res) => {
         age: newUser.age || 0,
         timestamp: Math.floor(Date.now() / 1000)
       };
-      newUser.qrToken = jwt.sign(qrPayload, jwtSecret);
+      newUser.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' }); // always 72h
     } else {
       newUser.qrToken = '';
     }
@@ -207,7 +215,7 @@ router.put('/users/:id', protect, adminOnly, async (req, res) => {
         age: user.age || 0,
         timestamp: Math.floor(Date.now() / 1000)
       };
-      user.qrToken = jwt.sign(qrPayload, jwtSecret);
+      user.qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' }); // always 72h
     } else {
       user.qrToken = '';
     }
@@ -482,7 +490,7 @@ const verifyAdminOTP = async (req, res, otpCode) => {
         success: false,
         status: 400,
         requiresOtp: true,
-        message: `[SIMULATED] Security Verification: Code is ${otp}. Please input it to authorize this action.`
+        message: `[DEV Mode] Security Verification: A code has been generated. Check the server console log to retrieve it.`
       };
     }
 
@@ -496,15 +504,12 @@ const verifyAdminOTP = async (req, res, otpCode) => {
     if (!otpResult.success) {
       // Temporary Fallback: If Resend fails (e.g. sandbox restriction, quota, rate-limit),
       // we save the OTP in the database and return it to the admin client to bypass the lockout.
-      admin.otp = otp;
-      admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-      await admin.save();
-      console.warn(`[OTP FALLBACK] Admin Resend email failed. Falling back to simulated OTP code: ${otp}`);
+      console.warn(`[OTP FALLBACK] Admin Resend email failed. Simulated OTP code logged to server console: ${otp}`);
       return { 
         success: false, 
         status: 400, 
         requiresOtp: true, 
-        message: `[Demo Mode] Security Verification: A code has been generated: ${otp}. Please input it to authorize this action.` 
+        message: `Security Verification: A 6-digit authorization code has been generated and logged to the server console. Please check your server logs or contact your developer to retrieve it.` 
       };
     }
     

@@ -33,7 +33,7 @@ const isPlausibleName = (name, rawLine) => {
   
   // Clean string
   const cleaned = name.replace(/[^a-zA-Z\s]/g, '').trim();
-  if (cleaned.length < 3 || cleaned.length > 35) return false;
+  if (cleaned.length < 3 || cleaned.length > 50) return false; // Allow up to 50 chars for South Indian names
   
   // A valid name typically does not contain digits
   if (/\d/.test(cleaned)) return false;
@@ -201,12 +201,14 @@ export const extractDate = (text) => {
   }
 
   // Super fallback: Find any 4-digit number between 1920 and current year that isn't part of card numbers
-  const years = text.match(/\b(19\d{2}|20[0-2]\d)\b/g);
+  const currentYearFull = new Date().getFullYear();
+  const yearPattern = new RegExp(`\\b(19\\d{2}|2[0-${Math.floor(currentYearFull / 10) % 10}][0-9]\\d)\\b`, 'g');
+  const years = text.match(yearPattern);
   if (years) {
     // Return first reasonable year
     for (const yStr of years) {
       const y = parseInt(yStr, 10);
-      if (y > 1920 && y < new Date().getFullYear() - 5) {
+      if (y > 1920 && y < currentYearFull - 5) {
         return `${y}-01-01`;
       }
     }

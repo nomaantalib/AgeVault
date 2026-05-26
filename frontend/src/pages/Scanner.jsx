@@ -340,6 +340,10 @@ const Scanner = () => {
     startScanner();
     return () => {
       stopScanner();
+      // Clean up the hidden QR decoder DOM element to avoid memory/DOM leak on unmount
+      const dummy = document.getElementById('qr-decoder-dummy');
+      if (dummy) dummy.remove();
+      qrDecoderRef.current = null;
     };
   }, []);
 
@@ -636,7 +640,7 @@ const Scanner = () => {
 
               {/* Reset scan button */}
               <button
-                onClick={() => { setScanResult(null); startScanner(); }}
+                onClick={() => { setScanResult(null); setError(''); startScanner(); }}
                 className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition duration-200"
               >
                 Scan Next Customer

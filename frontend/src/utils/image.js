@@ -11,11 +11,15 @@
 export const resolveImageUrl = (url, apiUrl) => {
   if (!url) return '';
 
+  // Short-circuit for blob:// preview URLs — these are in-memory only and must not be rewritten
+  if (url.startsWith('blob:')) return url;
+
+  // Short-circuit for data:// base64 preview URIs
+  if (url.startsWith('data:')) return url;
+
   // 1. If it's a Cloudinary URL or general absolute external URL (e.g. Google profile pic), return as-is
   if (
     url.includes('res.cloudinary.com') ||
-    url.startsWith('http://res.cloudinary.com') ||
-    url.startsWith('https://res.cloudinary.com') ||
     url.includes('lh3.googleusercontent.com')
   ) {
     return url;
@@ -44,6 +48,12 @@ export const resolveImageUrl = (url, apiUrl) => {
     relativePath = '/' + relativePath;
   }
 
-  // 4. Return correct resolved URL
+  // 4. Guard against undefined/null apiUrl (returns the relative path as fallback)
+  if (!apiUrl) {
+    console.warn('resolveImageUrl: apiUrl is undefined. Returning relative path:', relativePath);
+    return relativePath;
+  }
+
+  // 5. Return correct resolved URL
   return `${apiUrl}${relativePath}`;
 };

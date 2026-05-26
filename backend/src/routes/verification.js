@@ -170,6 +170,18 @@ router.post('/submit', protect, upload.fields([
     const idCardUrl = await uploadImage(idCardLocalPath, req);
     const selfieUrl = await uploadImage(selfieLocalPath, req);
 
+    // Clean up temp files from disk asynchronously after upload (prevents disk leak)
+    const cleanupFiles = () => {
+      [idCardLocalPath, selfieLocalPath].forEach(filePath => {
+        fs.unlink(filePath, (err) => {
+          if (err && err.code !== 'ENOENT') {
+            console.warn('Temp file cleanup warning:', err.message);
+          }
+        });
+      });
+    };
+    cleanupFiles();
+
     const confidenceScore = faceMatchConfidence ? parseFloat(faceMatchConfidence) : 0;
 
     // Auto-verify if:

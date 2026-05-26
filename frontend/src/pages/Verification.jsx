@@ -100,12 +100,14 @@ const Verification = () => {
 
   const handleProceedToSelfie = () => {
     setError('');
-    if (!extractedDob || !dob) {
-      setError('⚠️ OCR Failure: Date of Birth could not be extracted from this ID document. Please upload a clearer, well-lit document image.');
+    // Validate that DOB is filled (either by OCR or manual entry)
+    if (!dob) {
+      setError('⚠️ Date of Birth is required. OCR could not extract it automatically — please enter it manually in the field below.');
       return;
     }
-    if (!extractedName || !fullName.trim()) {
-      setError('⚠️ OCR Failure: Full Name could not be extracted from this ID document. Please upload a clearer, well-lit document image.');
+    // Validate that Name is filled (either by OCR or manual entry)
+    if (!fullName.trim()) {
+      setError('⚠️ Full Name is required. OCR could not extract it automatically — please enter it manually in the field below.');
       return;
     }
     const age = calculateAge(dob);
@@ -486,6 +488,15 @@ const Verification = () => {
       return;
     }
 
+    if (!idCardFile) {
+      setError('Please upload your ID card document first.');
+      return;
+    }
+    if (!selfieFile) {
+      setError('Please capture or upload your selfie before submitting.');
+      return;
+    }
+
     const age = calculateAge(dob);
     if (age < 18) {
       setError('Access Denied: You must be 18 years or older to register.');
@@ -644,7 +655,7 @@ const Verification = () => {
                 Please select your ID type and upload a clear, high-resolution front-facing image or PDF document.
               </p>
               <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
-                Google ML Kit OCR Engine Active
+                Tesseract.js OCR Engine Active
               </div>
             </div>
 
