@@ -175,10 +175,10 @@ router.post('/submit', protect, upload.fields([
     // Determine verification status
     // Auto-verify if:
     // 1. User is older than 18
-    // 2. Face match confidence is 40% or higher
+    // 2. Face match confidence is 30% or higher
     // Otherwise, set status to pending for admin manual review
     let status = 'pending';
-    if (age >= 18 && confidenceScore >= 40) {
+    if (age >= 18 && confidenceScore >= 30) {
       status = 'verified';
     }
 
@@ -209,8 +209,12 @@ router.post('/submit', protect, upload.fields([
       };
       const qrToken = jwt.sign(qrPayload, jwtSecret, { expiresIn: '72h' });
       user.qrToken = qrToken;
+      user.qrPin = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8-digit PIN
+      user.qrPinExpires = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days expiry
     } else {
       user.qrToken = '';
+      user.qrPin = '';
+      user.qrPinExpires = undefined;
     }
 
     await user.save();
@@ -244,29 +248,40 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
   const { qrToken } = req.body;
 
   if (!qrToken) {
-    return res.status(400).json({ success: false, message: 'QR Token is required' });
+    return res.status(400).json({ success: false, message: 'QR Passcode or PIN is required' });
   }
 
   try {
     const jwtSecret = process.env.JWT_SECRET;
-    
-    // Decode and verify JWT signature first to extract user ID
-    let decoded;
-    try {
-      decoded = jwt.verify(qrToken, jwtSecret);
-    } catch (err) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid QR Code: Token has been modified, forged, or is expired.'
-      });
+    let user;
+    let decoded = null;
+
+    // Check if the scanned token is an 8-digit PIN code
+    if (/^\d{8}$/.test(qrToken.trim())) {
+      user = await User.findOne({ qrPin: qrToken.trim() });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Access Denied: Invalid PIN code. Customer record not found.'
+        });
+      }
+    } else {
+      // Decode and verify JWT signature to extract user ID
+      try {
+        decoded = jwt.verify(qrToken, jwtSecret);
+        user = await User.findById(decoded.uid);
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: 'Access Denied: Invalid QR Code. Token has been modified, forged, or is expired.'
+        });
+      }
     }
 
-    // Fetch user from DB
-    const user = await User.findById(decoded.uid);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Invalid QR Code: User profile does not exist in the system.'
+        message: 'Access Denied: Scanned customer profile does not exist.'
       });
     }
 
@@ -302,15 +317,17 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
       }
     }
 
-    // Check 2: Replay attack check (72 hours expiration)
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-    const maxAge = 72 * 60 * 60; // 72 hours
-    if (decoded.timestamp && (currentTimestamp - decoded.timestamp) > maxAge) {
+    // Check 2: Expiration check (valid for 3 days / 72 hours)
+    const isExpired = decoded
+      ? (decoded.timestamp && (Math.floor(Date.now() / 1000) - decoded.timestamp) > 72 * 60 * 60)
+      : (user.qrPinExpires && new Date() > user.qrPinExpires);
+
+    if (isExpired) {
       return res.json({
         success: true,
         verified: false,
         status: user.status,
-        message: 'Access Denied: QR Code has expired (older than 72 hours). Please refresh the dashboard.',
+        message: 'Access Denied: QR Pass/PIN has expired (older than 3 days). Please refresh the dashboard.',
         eventTitle: event ? event.title : 'General Admission',
         user: userDetails
       });

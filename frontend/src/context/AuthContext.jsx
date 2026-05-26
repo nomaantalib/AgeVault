@@ -47,38 +47,16 @@ export const AuthProvider = ({ children }) => {
     fetchMe();
   }, [token]);
 
-  // Send OTP handler (Resend integration)
-  const sendOtp = async (email, name, phone, role, authMode) => {
+  // Login handler
+  const login = async (emailOrPhone, password) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, name, phone, role, authMode }),
-      });
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Send OTP failed:', error);
-      return { success: false, message: 'Server unreachable. Check if backend is running.' };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Verify OTP handler (Resend integration)
-  const verifyOtp = async (email, otp) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ emailOrPhone, password }),
       });
 
       const data = await response.json();
@@ -92,7 +70,89 @@ export const AuthProvider = ({ children }) => {
         return { success: false, message: data.message };
       }
     } catch (error) {
-      console.error('Verify OTP failed:', error);
+      console.error('Login failed:', error);
+      return { success: false, message: 'Server unreachable. Check if backend is running.' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Register handler
+  const register = async (name, email, phone, password, schoolAnswer, petAnswer, cityAnswer) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, phone, password, schoolAnswer, petAnswer, cityAnswer }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('agevault_token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, user: data.user };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (error) {
+      console.error('Registration failed:', error);
+      return { success: false, message: 'Server unreachable. Check if backend is running.' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google Login handler
+  const googleLogin = async (idToken, phone) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/google-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken, phone }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('agevault_token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return { success: true, user: data.user };
+      } else {
+        return { success: false, message: data.message };
+      }
+    } catch (error) {
+      console.error('Google login failed:', error);
+      return { success: false, message: 'Server unreachable. Check if backend is running.' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset Password handler
+  const resetPassword = async (emailOrPhone, schoolAnswer, petAnswer, cityAnswer, newPassword) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emailOrPhone, schoolAnswer, petAnswer, cityAnswer, newPassword }),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Reset password failed:', error);
       return { success: false, message: 'Server unreachable. Check if backend is running.' };
     } finally {
       setLoading(false);
@@ -125,7 +185,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, sendOtp, verifyOtp, logout, refreshUser, apiUrl: API_URL }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, googleLogin, resetPassword, logout, refreshUser, apiUrl: API_URL }}>
       {children}
     </AuthContext.Provider>
   );

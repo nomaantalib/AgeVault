@@ -23,7 +23,7 @@ export const ThemeProvider = ({ children }) => {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <div className={`${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'} min-h-screen transition-colors duration-500`}>
+      <div className="min-h-screen transition-colors duration-500">
         {children}
       </div>
     </ThemeContext.Provider>

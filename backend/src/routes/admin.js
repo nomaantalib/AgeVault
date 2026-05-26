@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Event = require('../models/Event');
 const Club = require('../models/Club');
@@ -119,10 +120,10 @@ router.get('/users', protect, adminOnly, async (req, res) => {
 });
 
 // @route   POST api/admin/users
-// @desc    Create a user manually
+// @desc    Create a user manually (e.g. staff member)
 // @access  Private (Admin only)
 router.post('/users', protect, adminOnly, async (req, res) => {
-  const { phone, name, email, role, status, dob, age, club } = req.body;
+  const { phone, name, email, role, status, dob, age, club, password } = req.body;
   if (!phone) {
     return res.status(400).json({ success: false, message: 'Phone number is required' });
   }
@@ -131,6 +132,13 @@ router.post('/users', protect, adminOnly, async (req, res) => {
     if (existing) {
       return res.status(400).json({ success: false, message: 'User with this phone number already exists' });
     }
+
+    let hashedPassword = '';
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
     const newUser = new User({
       phone,
       name: name || '',
@@ -140,6 +148,7 @@ router.post('/users', protect, adminOnly, async (req, res) => {
       dob: dob ? new Date(dob) : undefined,
       age: age || undefined,
       club: club || 'The Palace Lounge',
+      password: hashedPassword
     });
     // Generate QR token ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;
@@ -166,7 +175,7 @@ router.post('/users', protect, adminOnly, async (req, res) => {
 // @desc    Update a user manually
 // @access  Private (Admin only)
 router.put('/users/:id', protect, adminOnly, async (req, res) => {
-  const { phone, name, email, role, status, dob, age, club } = req.body;
+  const { phone, name, email, role, status, dob, age, club, password } = req.body;
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -183,6 +192,10 @@ router.put('/users/:id', protect, adminOnly, async (req, res) => {
     }
     if (age !== undefined) {
       user.age = age;
+    }
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
     }
     // Regenerate QR token ONLY if verified
     const jwtSecret = process.env.JWT_SECRET;

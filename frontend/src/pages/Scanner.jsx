@@ -197,14 +197,14 @@ const Scanner = () => {
           </div>
 
           {/* Manual Entry Fallback */}
-          <form onSubmit={handleManualSubmit} className="mt-6 pt-4 border-t border-slate-850 space-y-2">
+          <form onSubmit={handleManualSubmit} className="mt-6 pt-4 border-t border-slate-800 space-y-2">
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              Or Paste Scanned Code String (Demo/Test)
+              Or Enter Customer 8-Digit PIN / Access Code
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Paste signed JWT token string..."
+                placeholder="e.g. 12345678 or JWT..."
                 value={manualToken}
                 onChange={(e) => setManualToken(e.target.value)}
                 disabled={loading}
@@ -213,7 +213,7 @@ const Scanner = () => {
               <button
                 type="submit"
                 disabled={loading || !manualToken}
-                className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-lg transition"
+                className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-650 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-lg transition"
               >
                 <ArrowRight className="w-4 h-4" />
               </button>

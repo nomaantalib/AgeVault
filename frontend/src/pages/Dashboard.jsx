@@ -75,7 +75,7 @@ const Dashboard = () => {
             </div>
 
             {/* Secure QR Code Container */}
-            <div className="bg-white p-4.5 rounded-2xl shadow-xl shadow-indigo-500/10 mb-6 border-2 border-indigo-500/30 relative flex flex-col items-center justify-center min-w-[210px] min-h-[210px]">
+            <div className="bg-white p-4.5 rounded-2xl shadow-xl shadow-amber-500/10 mb-5 border-2 border-amber-500/30 relative flex flex-col items-center justify-center min-w-[210px] min-h-[210px]">
               {user.qrScanned ? (
                 <div className="w-[180px] h-[180px] flex flex-col items-center justify-center text-center p-2">
                   <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/25 rounded-full flex items-center justify-center mb-3">
@@ -99,7 +99,7 @@ const Dashboard = () => {
                     className="rounded-lg"
                   />
                   {/* Inner overlay laser animation */}
-                  <div className="absolute top-4 left-4 right-4 h-0.5 bg-indigo-500 shadow-[0_0_10px_2px_rgba(99,102,241,0.5)] animate-pulse pointer-events-none"></div>
+                  <div className="absolute top-4 left-4 right-4 h-0.5 bg-amber-500 shadow-[0_0_10px_2px_rgba(217,160,91,0.5)] animate-pulse pointer-events-none"></div>
                 </>
               ) : (
                 <div className="w-[180px] h-[180px] flex items-center justify-center text-xs text-slate-400 font-medium">
@@ -107,6 +107,17 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
+
+            {/* Access PIN Code Display */}
+            {user.qrPin && !user.qrScanned && (
+              <div className="mb-6 px-5 py-2 border border-amber-500/20 bg-black/40 rounded-2xl flex flex-col items-center shadow-inner">
+                <span className="text-[8px] uppercase tracking-widest text-slate-500 font-bold">Access PIN Code</span>
+                <span className="text-2xl font-black font-mono text-gradient tracking-[4px] mt-0.5">
+                  {user.qrPin.slice(0, 4)} - {user.qrPin.slice(4)}
+                </span>
+                <span className="text-[8px] text-slate-500 mt-1 uppercase font-semibold">Valid for 3 days or until scanned</span>
+              </div>
+            )}
 
             {/* User Selfie Badge */}
             {user.selfieUrl && (
@@ -164,8 +175,17 @@ const Dashboard = () => {
 
             {/* Help guidelines */}
             <p className="text-[10px] text-slate-500 text-center leading-relaxed max-w-xs">
-              Present this secure, signed QR code to the club gate staff. They will scan it to verify you are above legal entrance age.
+              Present this secure, signed QR code or the 8-digit Access PIN to the club gate staff. They will scan or verify it to grant entry.
             </p>
+
+            <div className="mt-5 pt-4 border-t border-slate-800/60 w-full text-center space-y-1">
+              <span className="text-[9px] text-slate-500 uppercase tracking-widest font-extrabold block">
+                ❓ Access Support
+              </span>
+              <p className="text-[10px] text-slate-400">
+                Issues with verification? Contact our admin at: <a href="mailto:admin@agevault.com" className="text-amber-500 font-bold hover:underline">admin@agevault.com</a>
+              </p>
+            </div>
           </div>
 
           {/* Quick link for scanning if admin/club */}

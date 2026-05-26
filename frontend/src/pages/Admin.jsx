@@ -661,31 +661,37 @@ const Admin = () => {
         <div className="flex overflow-x-auto whitespace-nowrap bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto self-stretch md:self-center no-scrollbar gap-1.5">
           <button
             onClick={() => setActiveTab('audits')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'audits' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'audits' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Audit Queue
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'users' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             User CRUD
           </button>
           <button
+            onClick={() => setActiveTab('staff')}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'staff' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+          >
+            Manage Staff
+          </button>
+          <button
             onClick={() => setActiveTab('event')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'event' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'event' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Schedule Event
           </button>
           <button
             onClick={() => setActiveTab('database')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'database' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'database' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Database Operations
           </button>
           <button
             onClick={() => setActiveTab('clubs')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'clubs' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'clubs' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Manage Clubs
           </button>
@@ -1376,6 +1382,105 @@ const Admin = () => {
         </div>
       )}
 
+      {/* TAB 6: STAFF CRUD */}
+      {activeTab === 'staff' && (
+        <div className="glass-panel rounded-3xl p-6 border-slate-800/80 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-850 pb-4">
+            <div>
+              <h2 className="text-sm font-bold text-gradient uppercase tracking-wider flex items-center gap-2">
+                <Shield className="w-5 h-5 text-amber-500" />
+                Gate Staff Management CRUD
+              </h2>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Manually register authorized gate staff members. Authorized staff can log in with their email/phone and password to scan tickets.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setModalMode('create');
+                setCrudUser({
+                  id: '',
+                  phone: '',
+                  name: '',
+                  email: '',
+                  role: 'club', // force role to gate staff
+                  status: 'verified', // staff is verified by default
+                  password: '',
+                  club: selectedClub !== 'All Clubs' ? selectedClub : 'The Palace Lounge'
+                });
+                setCrudError('');
+                setShowUserModal(true);
+              }}
+              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1 transition shadow-lg shadow-amber-500/15"
+            >
+              <Plus className="w-4 h-4" />
+              Add Staff Person
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-500 uppercase tracking-wider text-[9px] font-bold">
+                  <th className="py-3 px-2">Staff Phone</th>
+                  <th className="py-3 px-2">Staff Name</th>
+                  <th className="py-3 px-2">Staff Email</th>
+                  <th className="py-3 px-2">Assigned Venue/Club</th>
+                  <th className="py-3 px-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-850">
+                {allUsers.filter(u => u.role === 'club').map((staff) => (
+                  <tr key={staff._id} className="hover:bg-slate-900/20 text-slate-350">
+                    <td className="py-3.5 px-2 font-mono text-slate-200">{staff.phone}</td>
+                    <td className="py-3.5 px-2 font-semibold text-slate-100">{staff.name || 'Staff User'}</td>
+                    <td className="py-3.5 px-2 text-slate-400">{staff.email}</td>
+                    <td className="py-3.5 px-2 font-semibold text-amber-500">{staff.club || 'The Palace Lounge'}</td>
+                    <td className="py-3.5 px-2 text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setModalMode('edit');
+                            setCrudUser({
+                              id: staff._id,
+                              phone: staff.phone,
+                              name: staff.name || '',
+                              email: staff.email || '',
+                              role: staff.role,
+                              status: staff.status,
+                              password: '', // blank by default, only hash and update on edit if user inputs something
+                              club: staff.club || 'The Palace Lounge'
+                            });
+                            setCrudError('');
+                            setShowUserModal(true);
+                          }}
+                          className="p-1.5 bg-slate-800 hover:bg-amber-500/10 hover:text-amber-400 rounded-md text-slate-400 transition"
+                          title="Edit Staff"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(staff._id)}
+                          className="p-1.5 bg-slate-800 hover:bg-rose-500/10 hover:text-rose-400 rounded-md text-slate-400 transition"
+                          title="Delete Staff"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {allUsers.filter(u => u.role === 'club').length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-500 italic">No authorized staff found. Add staff members above.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* CRUD MODAL FOR CREATE / EDIT */}
       {showUserModal && (
         <div className="fixed inset-0 bg-dark-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1511,6 +1616,20 @@ const Admin = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Account Password {modalMode === 'create' ? <span className="text-amber-500">*</span> : <span className="text-slate-500">(Leave blank to keep current)</span>}
+                </label>
+                <input
+                  type="password"
+                  placeholder={modalMode === 'create' ? "Enter password" : "Enter new password to update"}
+                  value={crudUser.password || ''}
+                  onChange={(e) => setCrudUser({ ...crudUser, password: e.target.value })}
+                  required={modalMode === 'create'}
+                  className="w-full px-3 py-2.5 text-xs rounded-lg glass-input text-white focus:outline-none"
+                />
               </div>
 
               <div className="flex justify-end gap-2 text-xs pt-4 border-t border-slate-800">

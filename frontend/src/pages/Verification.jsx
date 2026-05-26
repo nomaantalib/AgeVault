@@ -24,6 +24,7 @@ const Verification = () => {
   const [idCardPreview, setIdCardPreview] = useState('');
   const [selfieFile, setSelfieFile] = useState(null);
   const [selfiePreview, setSelfiePreview] = useState('');
+  const [isUnderage, setIsUnderage] = useState(false);
 
   const calculateAge = (dobString) => {
     if (!dobString) return 0;
@@ -108,7 +109,7 @@ const Verification = () => {
     }
     const age = calculateAge(dob);
     if (age < 18) {
-      setError('Access Denied: You must be 18 years or older to register. The provided DOB indicates you are under 18.');
+      setIsUnderage(true);
       return;
     }
     setStep(2);
@@ -576,6 +577,48 @@ const Verification = () => {
     );
   }
 
+  if (isUnderage) {
+    return (
+      <div className="w-full max-w-md glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-6 border-red-500/30">
+        <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center justify-center animate-bounce">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-black text-red-400 tracking-wide">ACCESS RESTRICTED</h2>
+        
+        {/* Curvy Slang Section */}
+        <div className="p-5 bg-black/40 border border-amber-500/20 rounded-2xl">
+          <p className="font-cursive text-3xl text-gradient leading-relaxed">
+            Yo, kids don't go to clubs! 🚷
+          </p>
+          <p className="font-cursive text-2xl text-gradient mt-3 leading-relaxed">
+            Try after u become older...
+          </p>
+          <p className="font-cursive text-xl text-amber-500 mt-4 font-bold">
+            Go home & grab some juice! 🧃✨
+          </p>
+        </div>
+
+        <p className="text-[10px] text-slate-500 leading-normal max-w-xs">
+          AgeVault has detected that your birth details classify you as underage. Gate entry is prohibited.
+        </p>
+        
+        <button
+          onClick={() => {
+            setIsUnderage(false);
+            setIdCardFile(null);
+            setIdCardPreview('');
+            setDob('');
+            setFullName('');
+            setStep(1);
+          }}
+          className="w-full py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 text-xs font-semibold text-slate-300 hover:text-white transition"
+        >
+          Reset and Try Another ID
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-2xl">
       {/* Steps Indicator Progress */}
@@ -929,13 +972,13 @@ const Verification = () => {
                   <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold block mb-1">
                     AI Face-Match Score
                   </span>
-                  <div className={`text-4xl font-extrabold tracking-tight ${faceMatchConfidence >= 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <div className={`text-4xl font-extrabold tracking-tight ${faceMatchConfidence >= 30 ? 'text-emerald-400' : 'text-amber-400'}`}>
                     {faceMatchConfidence}%
                   </div>
                   <div className="mt-2.5 flex items-center justify-center gap-1">
-                    <span className={`w-2.5 h-2.5 rounded-full ${faceMatchConfidence >= 40 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                    <span className={`w-2.5 h-2.5 rounded-full ${faceMatchConfidence >= 30 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {faceMatchConfidence >= 40 
+                      {faceMatchConfidence >= 30 
                         ? 'Confidence Match (Eligible for Auto-Verification)' 
                         : 'Face mismatch or low resolution. Pending manual admin approval.'}
                     </span>
@@ -984,11 +1027,11 @@ const Verification = () => {
                   </div>
                 </div>
 
-                {faceMatchConfidence < 40 && (
+                {faceMatchConfidence < 30 && (
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 text-[10px] rounded-xl flex items-start gap-2 leading-relaxed">
                     <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                     <span>
-                      Since the match score is below 40%, your request will be queued in the **Pending Admin Review Queue**. Club admins can manually override and verify you shortly.
+                      Since the match score is below 30%, your request will be queued in the **Pending Admin Review Queue**. Club admins can manually override and verify you shortly.
                     </span>
                   </div>
                 )}

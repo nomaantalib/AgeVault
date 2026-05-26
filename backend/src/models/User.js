@@ -67,6 +67,29 @@ const UserSchema = new mongoose.Schema({
   otpExpires: {
     type: Date,
   },
+  password: {
+    type: String,
+    default: '',
+  },
+  schoolAnswer: {
+    type: String,
+    default: '',
+  },
+  petAnswer: {
+    type: String,
+    default: '',
+  },
+  cityAnswer: {
+    type: String,
+    default: '',
+  },
+  qrPin: {
+    type: String,
+    default: '',
+  },
+  qrPinExpires: {
+    type: Date,
+  },
   club: {
     type: String,
     default: 'The Palace Lounge',
