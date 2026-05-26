@@ -236,7 +236,7 @@ router.post('/google-login', async (req, res) => {
       user = new User({
         email,
         name,
-        phone: phone ? formatPhone(phone) : `+910000000000`, // Placeholder or provided phone
+        phone: phone ? formatPhone(phone) : `+91-GOOGLE-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`, // Unique placeholder avoids MongoDB duplicate phone indexes
         role: 'user',
         status: 'pending'
       });

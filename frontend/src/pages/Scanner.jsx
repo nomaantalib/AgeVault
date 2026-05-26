@@ -541,7 +541,7 @@ const Scanner = () => {
                       <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">ID Card Photo</span>
                       <div className="relative">
                         <img
-                          src={scanResult.user.idCardUrl}
+                          src={scanResult.user.idCardUrl.startsWith('http') ? scanResult.user.idCardUrl : `${apiUrl}${scanResult.user.idCardUrl}`}
                           alt="Government ID"
                           className="w-full h-24 object-contain rounded-xl border border-slate-800 bg-slate-950/60 p-0.5"
                         />
@@ -551,7 +551,7 @@ const Scanner = () => {
                       <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">Webcam Selfie</span>
                       <div className="relative">
                         <img
-                          src={scanResult.user.selfieUrl}
+                          src={scanResult.user.selfieUrl.startsWith('http') ? scanResult.user.selfieUrl : `${apiUrl}${scanResult.user.selfieUrl}`}
                           alt="Live Selfie"
                           className={`w-full h-24 object-cover rounded-xl border ${
                             scanResult.verified 

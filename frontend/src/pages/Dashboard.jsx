@@ -125,7 +125,7 @@ const Dashboard = () => {
             {user.selfieUrl && (
               <div className="mb-4">
                 <img
-                  src={user.selfieUrl}
+                  src={user.selfieUrl.startsWith('http') ? user.selfieUrl : `${apiUrl}${user.selfieUrl}`}
                   alt="Verified Profile Avatar"
                   className="w-20 h-20 object-cover rounded-2xl border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/10"
                 />

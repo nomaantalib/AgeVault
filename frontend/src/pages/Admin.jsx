@@ -813,13 +813,13 @@ const Admin = () => {
                   <div className="space-y-1.5">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">Uploaded ID Card</span>
                     <a 
-                      href={selectedUser.idCardUrl} 
+                      href={selectedUser.idCardUrl ? (selectedUser.idCardUrl.startsWith('http') ? selectedUser.idCardUrl : `${apiUrl}${selectedUser.idCardUrl}`) : '#'} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="relative block rounded-xl overflow-hidden bg-slate-950 border border-slate-850 hover:border-indigo-500 transition group"
                     >
                       <img 
-                        src={selectedUser.idCardUrl} 
+                        src={selectedUser.idCardUrl ? (selectedUser.idCardUrl.startsWith('http') ? selectedUser.idCardUrl : `${apiUrl}${selectedUser.idCardUrl}`) : ''} 
                         alt="ID Card Document" 
                         className="w-full h-40 object-contain p-1"
                       />
@@ -832,13 +832,13 @@ const Admin = () => {
                   <div className="space-y-1.5">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">Captured Selfie</span>
                     <a 
-                      href={selectedUser.selfieUrl} 
+                      href={selectedUser.selfieUrl ? (selectedUser.selfieUrl.startsWith('http') ? selectedUser.selfieUrl : `${apiUrl}${selectedUser.selfieUrl}`) : '#'} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="relative block rounded-xl overflow-hidden bg-slate-950 border border-slate-850 hover:border-indigo-500 transition group"
                     >
                       <img 
-                        src={selectedUser.selfieUrl} 
+                        src={selectedUser.selfieUrl ? (selectedUser.selfieUrl.startsWith('http') ? selectedUser.selfieUrl : `${apiUrl}${selectedUser.selfieUrl}`) : ''} 
                         alt="Captured Selfie" 
                         className="w-full h-40 object-cover"
                       />

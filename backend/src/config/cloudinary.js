@@ -45,18 +45,16 @@ const uploadImage = async (localFilePath, req) => {
       }
       return result.secure_url;
     } else {
-      // Local serving URL fallback
+      // Local serving URL fallback - return a clean relative path!
       const filename = localFilePath.split(/[\\/]/).pop();
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      return `${baseUrl}/uploads/${filename}`;
+      return `/uploads/${filename}`;
     }
   } catch (error) {
     console.error('Image upload failed:', error);
-    // If Cloudinary fails, try returning the local URL as a absolute fallback
+    // If Cloudinary fails, try returning the local relative URL as a fallback
     try {
       const filename = localFilePath.split(/[\\/]/).pop();
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      return `${baseUrl}/uploads/${filename}`;
+      return `/uploads/${filename}`;
     } catch (_) {
       throw error;
     }
