@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import * as faceapi from '@vladmandic/face-api';
 import Tesseract from 'tesseract.js';
 import confetti from 'canvas-confetti';
+import { parseOcrText } from '../utils/ocrParser';
 import { 
   ShieldCheck, Upload, Camera, FileText, CheckCircle2, 
   User, Calendar, AlertTriangle, RefreshCw, ChevronRight, X
@@ -188,137 +189,21 @@ const Verification = () => {
 
       console.log('OCR Extracted Text:', text);
 
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-      let dobFound = '';
-      let nameFound = '';
-
-      // --- 1. DOB PARSING ---
-      // Search lines for common birth labels
-      for (const line of lines) {
-        const cleanLine = line.toLowerCase();
-        if (cleanLine.includes('dob') || cleanLine.includes('birth') || cleanLine.includes('d.o.b') || cleanLine.includes('date of')) {
-          const match = line.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/);
-          if (match) {
-            const parts = match[0].split(/[\/\-]/);
-            if (parts[0].length === 4) {
-              dobFound = match[0];
-            } else {
-              dobFound = `${parts[2]}-${parts[1]}-${parts[0]}`;
-            }
-            break;
-          }
-          const ymdMatch = line.match(/\b\d{4}[\/\-]\d{2}[\/\-]\d{2}\b/);
-          if (ymdMatch) {
-            dobFound = ymdMatch[0];
-            break;
-          }
-        }
-      }
-
-      // General fallback check for any DD/MM/YYYY date pattern if not found near labels
-      if (!dobFound) {
-        const matches = text.match(/\b\d{2}[\/\-]\d{2}[\/\-]\d{4}\b/g);
-        if (matches && matches.length > 0) {
-          const parts = matches[0].split(/[\/\-]/);
-          dobFound = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-      }
-
-      // Year of Birth fallback for Aadhaar card
-      if (!dobFound) {
-        const yobRegex = /(?:Year of Birth|YOB|Birth|Year)\s*:\s*(\d{4})/i;
-        const yobMatch = text.match(yobRegex);
-        if (yobMatch && yobMatch[1]) {
-          dobFound = `${yobMatch[1]}-01-01`;
-        }
-      }
-
-      // --- 2. NAME PARSING BY DOCUMENT TYPE ---
-      if (idType === 'aadhaar') {
-        // Aadhaar: Name is typically right above the gender / YOB / DOB line
-        for (let i = 0; i < lines.length; i++) {
-          const cleanLine = lines[i].toLowerCase();
-          if (cleanLine.includes('dob') || cleanLine.includes('birth') || cleanLine.includes('yob') || cleanLine.includes('male') || cleanLine.includes('female')) {
-            if (i > 0) {
-              let candidate = lines[i - 1].replace(/[^a-zA-Z\s]/g, '').trim();
-              if (candidate.length > 3 && !candidate.toLowerCase().includes('government') && !candidate.toLowerCase().includes('unique')) {
-                nameFound = candidate;
-                break;
-              }
-            }
-          }
-        }
-      } else if (idType === 'pan') {
-        // PAN Card: Filter generic headers; name is the first clean alphabetical uppercase line
-        const genericWords = ['income', 'tax', 'department', 'govt', 'india', 'permanent', 'account', 'number', 'card', 'father', 'signature'];
-        for (const line of lines) {
-          const cleanLine = line.toLowerCase();
-          const isGeneric = genericWords.some(w => cleanLine.includes(w));
-          if (!isGeneric && line.replace(/[^a-zA-Z]/g, '').length > 5) {
-            if (/^[A-Z\s\.]+$/.test(line.trim())) {
-              nameFound = line.trim();
-              break;
-            }
-          }
-        }
-      } else if (idType === 'license') {
-        // Driver's License: Look for line with "Name"
-        for (let i = 0; i < lines.length; i++) {
-          const cleanLine = lines[i].toLowerCase();
-          if (cleanLine.includes('name') || cleanLine.includes('fn') || cleanLine.includes('ln')) {
-            let match = lines[i].replace(/^(?:name|fn|ln|full name)\s*[\:\-\=]?\s*/i, '').replace(/[^a-zA-Z\s]/g, '').trim();
-            if (match.length > 3) {
-              nameFound = match;
-              break;
-            } else if (i < lines.length - 1) {
-              let candidate = lines[i + 1].replace(/[^a-zA-Z\s]/g, '').trim();
-              if (candidate.length > 3 && !candidate.toLowerCase().includes('licence') && !candidate.toLowerCase().includes('address')) {
-                nameFound = candidate;
-                break;
-              }
-            }
-          }
-        }
-      } else if (idType === 'passport') {
-        // Passport: Look for Given Name / Surname labels
-        for (let i = 0; i < lines.length; i++) {
-          const cleanLine = lines[i].toLowerCase();
-          if (cleanLine.includes('given name') || cleanLine.includes('sur name') || cleanLine.includes('surname')) {
-            let match = lines[i].replace(/^(?:given name|surname|sur name|name)\s*[\:\-\=]?\s*/i, '').replace(/[^a-zA-Z\s]/g, '').trim();
-            if (match.length > 3) {
-              nameFound = match;
-              break;
-            } else if (i < lines.length - 1) {
-              let candidate = lines[i + 1].replace(/[^a-zA-Z\s]/g, '').trim();
-              if (candidate.length > 3) {
-                nameFound = candidate;
-                break;
-              }
-            }
-          }
-        }
-      }
-
-      // Generic fallback parser if document-specific name extraction yielded nothing
-      if (!nameFound) {
-        for (const line of lines) {
-          const cleanLine = line.toLowerCase();
-          const genericWords = ['government', 'india', 'unique', 'tax', 'department', 'card', 'licence', 'license', 'passport', 'republic', 'birth'];
-          const isGeneric = genericWords.some(w => cleanLine.includes(w));
-          if (!isGeneric && line.replace(/[^a-zA-Z]/g, '').length > 6) {
-            nameFound = line.replace(/[^a-zA-Z\s]/g, '').trim();
-            break;
-          }
-        }
-      }
+      // Extract details using the new parser
+      const { dob: dobFound, name: nameFound } = parseOcrText(text, idType);
 
       if (dobFound) {
         setExtractedDob(dobFound);
         setDob(dobFound);
+      } else {
+        setExtractedDob('');
       }
+      
       if (nameFound) {
         setExtractedName(nameFound);
         setFullName(nameFound);
+      } else {
+        setExtractedName('');
       }
     } catch (err) {
       console.error('OCR Processing Error:', err);
