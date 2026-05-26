@@ -307,19 +307,21 @@ const Scanner = () => {
         } else if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           customMessage = '🚫 Browser Block: Your browser or in-app view does not support camera capture streams.';
         } else if (err) {
-          const errName = err.name || '';
-          const errMsg = err.message || '';
+          // Normalize string errors vs object errors case-insensitively
+          const errMsg = typeof err === 'string' ? err : (err.message || '');
+          const errName = typeof err === 'string' ? '' : (err.name || '');
+          const combinedError = `${errName} ${errMsg}`.toLowerCase();
           
-          if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+          if (combinedError.includes('allowed') || combinedError.includes('permission') || combinedError.includes('denied')) {
             customMessage = '🔑 Permission Denied: Camera access was blocked. Please check your browser address bar and grant camera permissions.';
-          } else if (errName === 'NotReadableError' || errName === 'TrackStartError' || errMsg.includes('in use') || errMsg.includes('active')) {
+          } else if (combinedError.includes('readable') || combinedError.includes('start') || combinedError.includes('use') || combinedError.includes('active') || combinedError.includes('locked')) {
             customMessage = '📷 Camera Lockout: The webcam is locked by another tab or program (e.g., Zoom, Teams). Close other video apps and retry.';
-          } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+          } else if (combinedError.includes('notfound') || combinedError.includes('device') || combinedError.includes('missing')) {
             customMessage = '🔌 Webcam Missing: No video input hardware detected. Please connect a camera and try again.';
-          } else if (errName === 'OverconstrainedError') {
+          } else if (combinedError.includes('constraint')) {
             customMessage = '⚙️ Configuration Error: High-speed video constraints are not supported by your camera hardware.';
           } else {
-            customMessage = `⚠️ Hardware Error: ${errMsg || errName || 'Unknown camera stream exception occurred.'}`;
+            customMessage = `⚠️ Hardware Error: ${typeof err === 'string' ? err : (errMsg || errName || 'Unknown camera stream exception occurred.')}`;
           }
         }
         
