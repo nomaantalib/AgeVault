@@ -487,12 +487,12 @@ const Scanner = () => {
           {/* Manual Entry Fallback */}
           <form onSubmit={handleManualSubmit} className="mt-6 pt-4 border-t border-slate-800 space-y-2">
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              Or Enter Customer 8-Digit PIN / Access Code
+              Or Lookup User (Enter ID, Phone, PIN, or JWT)
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="e.g. 12345678 or JWT..."
+                placeholder="e.g. +919999999999, 6471f3..., PIN, or JWT"
                 value={manualToken}
                 onChange={(e) => setManualToken(e.target.value)}
                 disabled={loading}

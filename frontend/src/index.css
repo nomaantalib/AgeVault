@@ -48,81 +48,63 @@
 
 /* ─────────────────────────── LIGHT (CLUB-DAY) THEME ─────────────────────────── */
 .light {
-  --bg-base: #fbfaf5; /* Lighter cream gold whitish base */
-  --bg-animate-gradient: linear-gradient(-45deg, #fbfaf5, #f6f3e1, #ebdca7, #fbfaf5);
-  --glass-bg: rgba(251, 250, 245, 0.82); /* Lighter whitish-cream base */
-  --glass-bg-glow: rgba(246, 243, 225, 0.94);
-  --glass-border: rgba(170, 124, 17, 0.5); /* More defined gold border */
-  --glass-glow-border: rgba(170, 124, 17, 0.7);
-  --glass-shadow: 0 8px 32px 0 rgba(170, 124, 17, 0.08);
-  --glass-glow-shadow: 0 10px 40px 0 rgba(170, 124, 17, 0.12);
-  --glass-input-bg: rgba(255, 255, 255, 0.85);
-  --glass-input-border: rgba(170, 124, 17, 0.5);
-  --text-primary: #000000; /* Pure black text */
-  --text-secondary: #111111; /* Black text */
-  --text-muted: #2d2d2d;
-  --border-muted: rgba(170, 124, 17, 0.5);
-  --theme-switch-bg: rgba(246, 243, 225, 0.7);
-  --neon-violet: #aa7c11;
-  --neon-pink: #d4af37;
-  --neon-gold: #b8860b;
-  --neon-cyan: #8a733e;
-  --accent-gradient: linear-gradient(135deg, #d4af37 0%, #ffffff 100%);
-  
-  font-weight: 600; /* Globally bold text in light mode */
-}
-
-/* Bold inputs, paragraph, labels, buttons in light mode */
-.light input, 
-.light select,
-.light button, 
-.light p, 
-.light span, 
-.light label,
-.light div,
-.light h1,
-.light h2,
-.light h3,
-.light h4,
-.light a {
-  font-weight: 700 !important;
+  --bg-base: #f4f6fa; /* Soothing soft gray-blue base */
+  --bg-animate-gradient: linear-gradient(-45deg, #f4f6fa, #e9edf5, #e2e8f0, #f4f6fa);
+  --glass-bg: rgba(255, 255, 255, 0.65); /* Elegant translucent white */
+  --glass-bg-glow: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(148, 163, 184, 0.16); /* Very soft border */
+  --glass-glow-border: rgba(99, 102, 241, 0.25); /* Gentle indigo border for glow */
+  --glass-shadow: 0 8px 32px 0 rgba(148, 163, 184, 0.04);
+  --glass-glow-shadow: 0 10px 40px 0 rgba(99, 102, 241, 0.06);
+  --glass-input-bg: rgba(255, 255, 255, 0.9);
+  --glass-input-border: rgba(148, 163, 184, 0.2);
+  --text-primary: #1e293b; /* Slate-800: soft dark charcoal instead of harsh pure black */
+  --text-secondary: #475569; /* Slate-600: easy on the eyes */
+  --text-muted: #64748b; /* Slate-500: muted gray */
+  --border-muted: rgba(148, 163, 184, 0.15);
+  --theme-switch-bg: rgba(255, 255, 255, 0.7);
+  --neon-violet: #6366f1; /* Indigo */
+  --neon-pink: #ec4899; /* Pink */
+  --neon-gold: #f59e0b; /* Amber */
+  --neon-cyan: #06b6d4; /* Cyan */
+  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
 }
 
 .light input::placeholder {
-  color: #555555 !important;
-  font-weight: 600 !important;
+  color: #94a3b8 !important; /* Soft placeholder */
+  font-weight: 500 !important;
 }
 
 /* ─── Light mode overrides for class names ─── */
-/* Direct mapping for text slate & gray colors to high-contrast black/dark gray */
+/* Direct mapping for text slate & gray colors to readable eye-friendly slate tones */
 .light .text-slate-300,
 .light .text-slate-400,
+.light .text-gray-400 { 
+  color: #475569 !important; 
+}
 .light .text-slate-500,
+.light .text-gray-500 { 
+  color: #64748b !important; 
+}
 .light .text-slate-200,
-.light .text-slate-100,
-.light .text-slate-205,
-.light .text-slate-350,
-.light .text-slate-250,
-.light .text-slate-650,
-.light .text-slate-750,
-.light .text-slate-850,
-.light .text-gray-400,
-.light .text-gray-500  { color: #111111 !important; font-weight: 700 !important; }
-
+.light .text-slate-100 { 
+  color: #1e293b !important; 
+}
 .light .text-slate-600,
-.light .text-slate-700 { color: #000000 !important; font-weight: 800 !important; }
-
-/* Keep white text on dark background buttons/badges/status indicators in light mode, 
-   but default text-white to black text on generic light surfaces */
-.light .text-white { 
-  color: #000000 !important; 
-  font-weight: 800 !important; 
+.light .text-slate-700 { 
+  color: #0f172a !important; 
 }
 
-/* Override all slate/dark backgrounds to premium light cream in light mode */
+/* Keep white text on dark background buttons/badges/status indicators in light mode, 
+   but default text-white to dark slate on generic light surfaces to preserve contrast */
+.light .text-white:not(button):not(a):not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-green"]):not([class*="bg-rose"]):not([class*="bg-blue"]):not([class*="bg-purple"]):not([class*="bg-primary"]):not([class*="bg-success"]):not([class*="bg-danger"]):not([class*="bg-rose-600"]):not([class*="bg-emerald-600"]) {
+  color: #1e293b !important; 
+}
+
+/* Override all slate/dark backgrounds to premium light translucent glass in light mode */
 .light [class*="bg-slate-"],
 .light [class*="bg-dark-"] {
-  background-color: rgba(246, 243, 225, 0.8) !important;
+  background-color: rgba(255, 255, 255, 0.65) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
 }
@@ -134,23 +116,23 @@
 .light [class*="bg-slate-900/"],
 .light [class*="bg-slate-950/"],
 .light [class*="bg-dark-900/"] {
-  background-color: rgba(246, 243, 225, 0.6) !important;
+  background-color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .light .hover\:bg-slate-700:hover,
 .light .hover\:bg-slate-800:hover,
 .light [class*="hover:bg-slate-"]:hover { 
-  background-color: rgba(246, 243, 225, 0.95) !important; 
+  background-color: rgba(255, 255, 255, 0.9) !important; 
 }
 
 /* Premium thin borders for card boxes in light mode */
 .light [class*="border-slate-"] {
-  border-color: rgba(170, 124, 17, 0.4) !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
 }
 .light .border-slate-800,
 .light .border-slate-850,
-.light .border-slate-700 { border-color: rgba(170, 124, 17, 0.5) !important; }
-.light .border-slate-900  { border-color: rgba(170, 124, 17, 0.35) !important; }
+.light .border-slate-700 { border-color: rgba(148, 163, 184, 0.22) !important; }
+.light .border-slate-900  { border-color: rgba(148, 163, 184, 0.12) !important; }
 
 /* ─────────────────────────── ANIMATED BG ─────────────────────────── */
 .animated-bg {

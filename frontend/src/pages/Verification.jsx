@@ -237,11 +237,14 @@ const Verification = () => {
       console.log('Pre-processing document image for high-accuracy OCR...');
       const processedFile = await preprocessImageForOcr(file);
 
-      // Use zero-config automatic Tesseract.recognize which handles CORS and CDNs robustly
+      // Use self-hosted local Tesseract assets for fast, offline-ready loading
       const { data: { text } } = await Tesseract.recognize(
         processedFile,
         'eng',
         {
+          workerPath: '/tesseract/worker.min.js',
+          corePath: '/tesseract/',
+          langPath: '/tesseract',
           logger: m => console.log('Tesseract OCR status:', m)
         }
       );

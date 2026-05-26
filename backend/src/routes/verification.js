@@ -267,16 +267,32 @@ router.post('/scan', protect, clubOrAdmin, async (req, res) => {
     let user;
     let decoded = null;
 
-    // Check if the scanned token is an 8-digit PIN code
-    if (/^\d{8}$/.test(qrToken.trim())) {
-      user = await User.findOne({ qrPin: qrToken.trim() });
+    const trimmedToken = qrToken.trim();
+
+    // 1. Check if the scanned token is a 24-character hex MongoDB ObjectID (Unique User ID)
+    if (/^[0-9a-fA-F]{24}$/.test(trimmedToken)) {
+      user = await User.findById(trimmedToken);
+    }
+    // 2. Check if it is a phone number (e.g. 9999999999 or +919999999999)
+    else if (/^\+?[0-9]{10,15}$/.test(trimmedToken)) {
+      user = await User.findOne({ phone: trimmedToken });
+      if (!user && !trimmedToken.startsWith('+')) {
+        // Try with +91 prefix fallback
+        user = await User.findOne({ phone: `+91${trimmedToken}` });
+      }
+    }
+    // 3. Check if it is an 8-digit PIN code
+    else if (/^\d{8}$/.test(trimmedToken)) {
+      user = await User.findOne({ qrPin: trimmedToken });
       if (!user) {
         return res.status(404).json({
           success: false,
           message: 'Access Denied: Invalid PIN code. Customer record not found.'
         });
       }
-    } else {
+    }
+    // 4. Default: Treat it as a standard JWT QR Token
+    else {
       // Decode and verify JWT signature to extract user ID
       try {
         decoded = jwt.verify(qrToken, jwtSecret);
