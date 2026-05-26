@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { resolveImageUrl } from '../utils/image';
 import { Html5Qrcode } from 'html5-qrcode';
 import { 
   Scan, CheckCircle, XCircle, ShieldAlert, ArrowRight, 
@@ -543,7 +544,7 @@ const Scanner = () => {
                       <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">ID Card Photo</span>
                       <div className="relative">
                         <img
-                          src={scanResult.user.idCardUrl.startsWith('http') ? scanResult.user.idCardUrl : `${apiUrl}${scanResult.user.idCardUrl}`}
+                          src={resolveImageUrl(scanResult.user.idCardUrl, apiUrl)}
                           alt="Government ID"
                           className="w-full h-24 object-contain rounded-xl border border-slate-800 bg-slate-950/60 p-0.5"
                         />
@@ -553,7 +554,7 @@ const Scanner = () => {
                       <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">Webcam Selfie</span>
                       <div className="relative">
                         <img
-                          src={scanResult.user.selfieUrl.startsWith('http') ? scanResult.user.selfieUrl : `${apiUrl}${scanResult.user.selfieUrl}`}
+                          src={resolveImageUrl(scanResult.user.selfieUrl, apiUrl)}
                           alt="Live Selfie"
                           className={`w-full h-24 object-cover rounded-xl border ${
                             scanResult.verified 

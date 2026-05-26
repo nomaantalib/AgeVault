@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { resolveImageUrl } from '../utils/image';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   ShieldCheck, ShieldAlert, Clock, AlertOctagon, User, Phone, 
@@ -125,7 +126,7 @@ const Dashboard = () => {
             {user.selfieUrl && (
               <div className="mb-4">
                 <img
-                  src={user.selfieUrl.startsWith('http') ? user.selfieUrl : `${apiUrl}${user.selfieUrl}`}
+                  src={resolveImageUrl(user.selfieUrl, apiUrl)}
                   alt="Verified Profile Avatar"
                   className="w-20 h-20 object-cover rounded-2xl border-2 border-emerald-500/60 shadow-lg shadow-emerald-500/10"
                 />

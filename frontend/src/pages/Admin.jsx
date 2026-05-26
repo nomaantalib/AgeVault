@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { resolveImageUrl } from '../utils/image';
 import { 
   Users, CheckCircle, Clock, AlertTriangle, ShieldCheck, 
   ExternalLink, Check, X, RefreshCw, MessageSquare, Download,
@@ -762,21 +763,35 @@ const Admin = () => {
                   <div
                     key={user._id}
                     onClick={() => setSelectedUser(user)}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition ${
+                    className={`p-3 rounded-xl border text-left cursor-pointer transition flex items-center gap-3 ${
                       selectedUser && selectedUser._id === user._id
                         ? 'bg-indigo-600/10 border-indigo-500'
                         : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
                     }`}
                   >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-semibold text-slate-205 text-xs">{user.name || 'Anonymous User'}</span>
-                      <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/25 px-1.5 py-0.5 rounded-md uppercase font-mono">
-                        {user.faceMatchConfidence}% Match
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>{user.phone}</span>
-                      <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                    {/* User Selfie Thumbnail in Queue */}
+                    {user.selfieUrl ? (
+                      <img 
+                        src={resolveImageUrl(user.selfieUrl, apiUrl)} 
+                        alt="Queue Selfie" 
+                        className="w-8 h-8 object-cover rounded-lg border border-slate-750 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-lg bg-slate-850 flex items-center justify-center flex-shrink-0 text-slate-500 font-bold font-mono text-[10px]">
+                        ?
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1 gap-1">
+                        <span className="font-semibold text-slate-205 text-xs truncate">{user.name || 'Anonymous User'}</span>
+                        <span className="text-[9px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/25 px-1.5 py-0.5 rounded-md uppercase font-mono flex-shrink-0">
+                          {user.faceMatchConfidence}% Match
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                        <span>{user.phone}</span>
+                        <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -813,13 +828,13 @@ const Admin = () => {
                   <div className="space-y-1.5">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">Uploaded ID Card</span>
                     <a 
-                      href={selectedUser.idCardUrl ? (selectedUser.idCardUrl.startsWith('http') ? selectedUser.idCardUrl : `${apiUrl}${selectedUser.idCardUrl}`) : '#'} 
+                      href={selectedUser.idCardUrl ? resolveImageUrl(selectedUser.idCardUrl, apiUrl) : '#'} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="relative block rounded-xl overflow-hidden bg-slate-950 border border-slate-850 hover:border-indigo-500 transition group"
                     >
                       <img 
-                        src={selectedUser.idCardUrl ? (selectedUser.idCardUrl.startsWith('http') ? selectedUser.idCardUrl : `${apiUrl}${selectedUser.idCardUrl}`) : ''} 
+                        src={resolveImageUrl(selectedUser.idCardUrl, apiUrl)} 
                         alt="ID Card Document" 
                         className="w-full h-40 object-contain p-1"
                       />
@@ -832,13 +847,13 @@ const Admin = () => {
                   <div className="space-y-1.5">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block">Captured Selfie</span>
                     <a 
-                      href={selectedUser.selfieUrl ? (selectedUser.selfieUrl.startsWith('http') ? selectedUser.selfieUrl : `${apiUrl}${selectedUser.selfieUrl}`) : '#'} 
+                      href={selectedUser.selfieUrl ? resolveImageUrl(selectedUser.selfieUrl, apiUrl) : '#'} 
                       target="_blank" 
                       rel="noreferrer" 
                       className="relative block rounded-xl overflow-hidden bg-slate-950 border border-slate-850 hover:border-indigo-500 transition group"
                     >
                       <img 
-                        src={selectedUser.selfieUrl ? (selectedUser.selfieUrl.startsWith('http') ? selectedUser.selfieUrl : `${apiUrl}${selectedUser.selfieUrl}`) : ''} 
+                        src={resolveImageUrl(selectedUser.selfieUrl, apiUrl)} 
                         alt="Captured Selfie" 
                         className="w-full h-40 object-cover"
                       />
@@ -952,6 +967,7 @@ const Admin = () => {
                   <th className="py-3 px-2">Phone</th>
                   <th className="py-3 px-2">Name</th>
                   <th className="py-3 px-2">Email</th>
+                  <th className="py-3 px-2">Photos</th>
                   <th className="py-3 px-2">Role</th>
                   <th className="py-3 px-2">Status</th>
                   <th className="py-3 px-2">Age (DOB)</th>
@@ -965,6 +981,44 @@ const Admin = () => {
                     <td className="py-3.5 px-2 font-mono text-slate-200">{user.phone}</td>
                     <td className="py-3.5 px-2 font-medium">{user.name || <span className="text-slate-600 italic">None</span>}</td>
                     <td className="py-3.5 px-2 text-slate-400">{user.email || <span className="text-slate-650 italic">None</span>}</td>
+                    <td className="py-3.5 px-2">
+                      <div className="flex gap-1">
+                        {user.idCardUrl ? (
+                          <a 
+                            href={resolveImageUrl(user.idCardUrl, apiUrl)} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-7 h-7 rounded border border-slate-700 bg-slate-950 overflow-hidden flex items-center justify-center cursor-zoom-in flex-shrink-0"
+                            title="View ID Card"
+                          >
+                            <img 
+                              src={resolveImageUrl(user.idCardUrl, apiUrl)} 
+                              alt="ID" 
+                              className="w-full h-full object-contain"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-slate-600 italic text-[10px]">No ID</span>
+                        )}
+                        {user.selfieUrl ? (
+                          <a 
+                            href={resolveImageUrl(user.selfieUrl, apiUrl)} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-7 h-7 rounded border border-slate-700 bg-slate-950 overflow-hidden flex items-center justify-center cursor-zoom-in flex-shrink-0"
+                            title="View Selfie"
+                          >
+                            <img 
+                              src={resolveImageUrl(user.selfieUrl, apiUrl)} 
+                              alt="Selfie" 
+                              className="w-full h-full object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-slate-600 italic text-[10px]">No Selfie</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-3.5 px-2">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                         user.role === 'admin' 
