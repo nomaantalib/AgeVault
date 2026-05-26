@@ -232,7 +232,7 @@ const Login = () => {
         {event ? (
           <div className="glass-panel-glow club-shine rounded-3xl p-6 md:p-8 flex flex-col justify-between relative overflow-hidden min-h-[380px]">
             <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-12 -left-10 w-52 h-52 rounded-full bg-orange-700/5 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-10 w-52 h-52 rounded-full bg-amber-600/5 blur-3xl pointer-events-none" />
 
             <div className="relative z-10 text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 neon-badge rounded-full text-[10px] font-extrabold uppercase tracking-widest mb-6">
@@ -293,8 +293,8 @@ const Login = () => {
           </div>
         ) : (
           <div className="glass-panel rounded-3xl p-8 flex flex-col justify-center items-center min-h-[350px] text-center relative overflow-hidden">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-500/5 to-orange-500/5 pointer-events-none" />
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center mb-5">
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-500/5 to-amber-600/5 pointer-events-none" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 flex items-center justify-center mb-5">
               <Shield className="w-8 h-8 text-amber-500" />
             </div>
             <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>No Event Scheduled</h3>
@@ -311,7 +311,7 @@ const Login = () => {
 
           {/* Logo Header */}
           <div className="flex flex-col items-center mb-5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-3 neon-pulse">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-3 neon-pulse">
               <Shield className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-gradient mb-1">
@@ -330,7 +330,7 @@ const Login = () => {
                 onClick={() => { setAuthMode('login'); setError(''); setInfoMsg(''); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 ${
                   authMode === 'login'
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15'
                     : 'hover:text-white'
                 }`}
                 style={{ color: authMode !== 'login' ? 'var(--text-muted)' : undefined }}
@@ -342,7 +342,7 @@ const Login = () => {
                 onClick={() => { setAuthMode('register'); setError(''); setInfoMsg(''); }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-300 ${
                   authMode === 'register'
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15'
                     : 'hover:text-white'
                 }`}
                 style={{ color: authMode !== 'register' ? 'var(--text-muted)' : undefined }}

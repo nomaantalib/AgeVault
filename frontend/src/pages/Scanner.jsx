@@ -248,7 +248,7 @@ const Scanner = () => {
               <button
                 type="submit"
                 disabled={loading || !manualToken}
-                className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-650 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-lg transition"
+                className="p-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:bg-slate-800 disabled:opacity-50 text-white rounded-lg transition"
               >
                 <ArrowRight className="w-4 h-4" />
               </button>

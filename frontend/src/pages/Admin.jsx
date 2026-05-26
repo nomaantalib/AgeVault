@@ -661,37 +661,37 @@ const Admin = () => {
         <div className="flex overflow-x-auto whitespace-nowrap bg-slate-900/60 p-1.5 rounded-xl border border-slate-800 w-full md:w-auto self-stretch md:self-center no-scrollbar gap-1.5">
           <button
             onClick={() => setActiveTab('audits')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'audits' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'audits' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Audit Queue
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'users' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'users' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             User CRUD
           </button>
           <button
             onClick={() => setActiveTab('staff')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'staff' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'staff' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Manage Staff
           </button>
           <button
             onClick={() => setActiveTab('event')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'event' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'event' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Schedule Event
           </button>
           <button
             onClick={() => setActiveTab('database')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'database' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'database' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Database Operations
           </button>
           <button
             onClick={() => setActiveTab('clubs')}
-            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'clubs' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3.5 py-2 text-xs font-bold rounded-lg transition duration-200 flex-shrink-0 ${activeTab === 'clubs' ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/15' : 'text-slate-400 hover:text-white'}`}
           >
             Manage Clubs
           </button>
@@ -1411,7 +1411,7 @@ const Admin = () => {
                 setCrudError('');
                 setShowUserModal(true);
               }}
-              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold rounded-lg flex items-center gap-1 transition shadow-lg shadow-amber-500/15"
+              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-semibold rounded-lg flex items-center gap-1 transition shadow-lg shadow-amber-500/15"
             >
               <Plus className="w-4 h-4" />
               Add Staff Person
