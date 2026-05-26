@@ -251,12 +251,14 @@ const Scanner = () => {
             const qrboxSize = Math.floor(minEdge * 0.75); // 75% size to allow easier focus
             return { width: qrboxSize, height: qrboxSize };
           },
-          aspectRatio: 1.0
+          aspectRatio: 1.0,
+          videoConstraints: {
+            frameRate: { ideal: 60 } // Request buttery smooth high-speed video capture safely
+          }
         };
 
         const cameraConstraints = {
-          facingMode: 'environment',
-          frameRate: { ideal: 60 } // Request buttery smooth high-speed video capture
+          facingMode: 'environment' // Exactly 1 key to satisfy html5-qrcode validation checks
         };
 
         try {
@@ -281,7 +283,7 @@ const Scanner = () => {
             scannerRef.current = fallbackQrCode;
 
             await fallbackQrCode.start(
-              { facingMode: 'user', frameRate: { ideal: 60 } },
+              { facingMode: 'user' }, // Exactly 1 key to satisfy html5-qrcode validation checks
               config,
               (decodedText) => {
                 stopScannerAndVerify(decodedText);
