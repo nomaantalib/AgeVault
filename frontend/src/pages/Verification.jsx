@@ -140,7 +140,8 @@ const Verification = () => {
     const loadModels = async () => {
       try {
         setLoadingMsg('Loading Face Detection Models...');
-        // Load tinyFaceDetector (faster for mobile) and faceLandmark/recognition
+        // Load ssdMobilenetv1, tinyFaceDetector, faceLandmark, and faceRecognition models
+        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
         await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
         await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
         await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
@@ -172,7 +173,13 @@ const Verification = () => {
     setOcrLoading(true);
     setError('');
     try {
-      const worker = await createWorker();
+      // Create worker with explicit CDN paths to prevent load failure in different environments
+      const worker = await createWorker({
+        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/worker.min.js',
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
+        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.1/tesseract-core.wasm.js',
+        logger: m => console.log('Tesseract OCR status:', m)
+      });
       await worker.loadLanguage('eng');
       await worker.initialize('eng');
       const { data: { text } } = await worker.recognize(file);
@@ -412,17 +419,33 @@ const Verification = () => {
       selfieImg.src = selfieImgSrc;
       await selfieImg.decode();
 
-      // 2. Detect face and extract descriptor from ID Card
-      const idResult = await faceapi
-        .detectSingleFace(idImg, new faceapi.TinyFaceDetectorOptions())
+      // 2. Detect face and extract descriptor from ID Card (try high-accuracy SSD first, fallback to Tiny)
+      let idResult = await faceapi
+        .detectSingleFace(idImg, new faceapi.SsdMobilenetv1Options())
         .withFaceLandmarks()
         .withFaceDescriptor();
 
-      // 3. Detect face and extract descriptor from Selfie
-      const selfieResult = await faceapi
-        .detectSingleFace(selfieImg, new faceapi.TinyFaceDetectorOptions())
+      if (!idResult) {
+        console.log('SSD Mobilenet face detection failed on ID card. Trying TinyFaceDetector fallback...');
+        idResult = await faceapi
+          .detectSingleFace(idImg, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+      }
+
+      // 3. Detect face and extract descriptor from Selfie (try high-accuracy SSD first, fallback to Tiny)
+      let selfieResult = await faceapi
+        .detectSingleFace(selfieImg, new faceapi.SsdMobilenetv1Options())
         .withFaceLandmarks()
         .withFaceDescriptor();
+
+      if (!selfieResult) {
+        console.log('SSD Mobilenet face detection failed on Selfie. Trying TinyFaceDetector fallback...');
+        selfieResult = await faceapi
+          .detectSingleFace(selfieImg, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+      }
 
       if (!idResult) {
         throw new Error('Could not detect any face in the uploaded ID card image. Make sure the face is clearly visible.');

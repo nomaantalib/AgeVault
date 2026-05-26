@@ -28,13 +28,24 @@ const Scanner = () => {
   const stopScanner = () => {
     if (scannerRef.current) {
       try {
-        scannerRef.current.clear();
-        scannerRef.current = null;
+        scannerRef.current.clear()
+          .then(() => {
+            scannerRef.current = null;
+            setScanning(false);
+          })
+          .catch((err) => {
+            console.error('Error clearing QR scanner:', err);
+            scannerRef.current = null;
+            setScanning(false);
+          });
       } catch (err) {
-        console.error('Error clearing QR scanner:', err);
+        console.error('Error clearing QR scanner sync:', err);
+        scannerRef.current = null;
+        setScanning(false);
       }
+    } else {
+      setScanning(false);
     }
-    setScanning(false);
   };
 
   const startScanner = () => {
@@ -57,11 +68,24 @@ const Scanner = () => {
 
         scanner.render(
           (decodedText) => {
-            // On successful scan
-            scanner.clear();
-            scannerRef.current = null;
-            setScanning(false);
-            verifyScannedToken(decodedText);
+            // On successful scan - wait for stop promise before removing DOM container
+            if (scannerRef.current) {
+              scannerRef.current.clear()
+                .then(() => {
+                  scannerRef.current = null;
+                  setScanning(false);
+                  verifyScannedToken(decodedText);
+                })
+                .catch((err) => {
+                  console.error('Failed to clear scanner on success:', err);
+                  scannerRef.current = null;
+                  setScanning(false);
+                  verifyScannedToken(decodedText);
+                });
+            } else {
+              setScanning(false);
+              verifyScannedToken(decodedText);
+            }
           },
           (errorMessage) => {
             // Verbose logging of frame scan failures can be ignored
@@ -143,11 +167,7 @@ const Scanner = () => {
     verifyScannedToken(manualToken.trim());
   };
 
-  const handleCopyToken = () => {
-    navigator.clipboard.writeText(user.qrToken);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  // Copy utility removed (unused in view)
 
   return (
     <div className="w-full max-w-2xl space-y-6">
