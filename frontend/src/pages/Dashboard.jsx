@@ -54,8 +54,8 @@ const Dashboard = () => {
     <div className="w-full max-w-lg">
       {/* Welcome Banner */}
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
-          Welcome to <span className="text-gradient font-extrabold">AgeVault</span>
+        <h1 className="text-2.5xl font-bold tracking-tight text-white font-sans">
+          Welcome to <span className="text-gradient font-cursive text-3.5xl">AgeVault</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
           Your digital age pass for fast and private club verification.
@@ -67,12 +67,14 @@ const Dashboard = () => {
       {/* Case 1: USER IS VERIFIED */}
       {user.status === 'verified' && (
         <div className="space-y-6">
-          <div className="glass-panel-glow rounded-3xl p-6 md:p-8 relative overflow-hidden flex flex-col items-center">
+          <div className="glass-panel-glow vip-glitter-card rounded-3xl p-6 md:p-8 relative overflow-hidden flex flex-col items-center">
+            <div className="absolute inset-0 glitter-bg pointer-events-none opacity-35 z-0" />
             {/* Glowing top badge */}
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider mb-6">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold rounded-full uppercase tracking-wider mb-2 z-10">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               Verified Age Pass
             </div>
+            <div className="font-cursive text-3.5xl text-gradient mb-6 z-10">VIP Access Pass</div>
 
             {/* Secure QR Code Container */}
             <div className="bg-white p-4.5 rounded-2xl shadow-xl shadow-amber-500/10 mb-5 border-2 border-amber-500/30 relative flex flex-col items-center justify-center min-w-[210px] min-h-[210px]">
@@ -276,11 +278,12 @@ const Dashboard = () => {
 
       {/* Case 4: NO ATTEMPT SUBMITTED YET */}
       {user.status !== 'verified' && user.status !== 'rejected' && (!user.idCardUrl) && (
-        <div className="glass-panel rounded-3xl p-6 md:p-8 border-slate-800/80 flex flex-col items-center">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mb-5 text-white shadow-lg shadow-indigo-600/25">
+        <div className="glass-panel vip-glitter-card rounded-3xl p-6 md:p-8 flex flex-col items-center">
+          <div className="absolute inset-0 glitter-bg pointer-events-none opacity-20 z-0" />
+          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mb-5 text-white shadow-lg shadow-indigo-600/20 z-10">
             <Award className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-white">Verify Your Identity</h2>
+          <h2 className="text-xl font-bold text-white z-10">Verify Your Identity</h2>
           <p className="text-xs text-slate-400 text-center mt-2 max-w-xs leading-relaxed">
             You need to complete a quick identity check to generate your secure Age Pass.
           </p>

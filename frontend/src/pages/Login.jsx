@@ -230,7 +230,8 @@ const Login = () => {
 
         {/* Left Column: Event info & registration rules */}
         {event ? (
-          <div className="glass-panel-glow club-shine rounded-3xl p-6 md:p-8 flex flex-col justify-between relative overflow-hidden min-h-[380px]">
+          <div className="glass-panel-glow vip-glitter-card rounded-3xl p-6 md:p-8 flex flex-col justify-between relative overflow-hidden min-h-[380px]">
+            <div className="absolute inset-0 glitter-bg pointer-events-none opacity-30 z-0" />
             <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-12 -left-10 w-52 h-52 rounded-full bg-amber-600/5 blur-3xl pointer-events-none" />
 
@@ -240,6 +241,7 @@ const Login = () => {
                 Featured Event
               </div>
 
+              <div className="font-cursive text-2xl text-gradient mb-1">You're Invited</div>
               <h3 className="text-2xl font-extrabold leading-tight mb-3 text-gradient">
                 {event.title}
               </h3>
@@ -305,7 +307,8 @@ const Login = () => {
         )}
 
         {/* Right Column: Auth Card */}
-        <div className="glass-panel-glow club-shine rounded-3xl p-6 md:p-8 relative overflow-hidden flex flex-col justify-center">
+        <div className="glass-panel-glow vip-glitter-card rounded-3xl p-6 md:p-8 relative overflow-hidden flex flex-col justify-center">
+          <div className="absolute inset-0 glitter-bg pointer-events-none opacity-20 z-0" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-8 bg-amber-500/10 blur-xl pointer-events-none rounded-full" />
 
@@ -314,7 +317,7 @@ const Login = () => {
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25 mb-3 neon-pulse">
               <Shield className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-gradient mb-1">
+            <h2 className="text-3.5xl tracking-wide text-gradient mb-1 font-cursive">
               AgeVault
             </h2>
             <p className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
