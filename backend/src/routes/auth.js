@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
     const formattedPhone = formatPhone(phone);
 
     // Check if user already exists
-    const existingUser = await User.findOne({
+    let existingUser = await User.findOne({
       $or: [
         { email: email.toLowerCase().trim() },
         { phone: formattedPhone }
@@ -65,6 +65,38 @@ router.post('/register', async (req, res) => {
     });
 
     if (existingUser) {
+      // If user exists but has no password (registered via Google), upgrade the account!
+      if (!existingUser.password) {
+        const salt = await bcrypt.genSalt(10);
+        existingUser.password = await bcrypt.hash(password, salt);
+        existingUser.schoolAnswer = await bcrypt.hash(schoolAnswer.toLowerCase().trim(), salt);
+        existingUser.petAnswer = await bcrypt.hash(petAnswer.toLowerCase().trim(), salt);
+        existingUser.cityAnswer = await bcrypt.hash(cityAnswer.toLowerCase().trim(), salt);
+        existingUser.phone = formattedPhone;
+        existingUser.name = name.trim();
+        await existingUser.save();
+
+        const jwtSecret = process.env.JWT_SECRET;
+        const token = jwt.sign(
+          { id: existingUser._id, role: existingUser.role },
+          jwtSecret,
+          { expiresIn: '30d' }
+        );
+
+        return res.status(200).json({
+          success: true,
+          token,
+          user: {
+            id: existingUser._id,
+            name: existingUser.name,
+            email: existingUser.email,
+            phone: existingUser.phone,
+            role: existingUser.role,
+            status: existingUser.status
+          }
+        });
+      }
+
       return res.status(400).json({ success: false, message: 'An account with this email or phone number is already registered.' });
     }
 
@@ -145,7 +177,7 @@ router.post('/login', async (req, res) => {
 
     // Google-only users might not have a password configured
     if (!user.password) {
-      return res.status(400).json({ success: false, message: 'This account was registered using Google. Please log in using Google.' });
+      return res.status(400).json({ success: false, message: 'No password has been set for this account yet. Please log in using Google, or register manually using the same email/phone to establish a password.' });
     }
 
     // Verify password
