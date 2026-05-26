@@ -158,16 +158,16 @@ const Dashboard = () => {
             )}
 
             {/* Quick Details Grid */}
-            <div className="w-full grid grid-cols-3 gap-2.5 bg-slate-950/40 rounded-2xl p-4 border border-slate-800/80 mb-6 text-xs text-slate-300">
-              <div className="flex flex-col gap-1 border-r border-slate-800/60 pr-1.5 text-center">
+            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-950/40 rounded-2xl p-4 border border-slate-800/80 mb-6 text-xs text-slate-300">
+              <div className="flex flex-col gap-1 sm:border-r border-slate-800/60 sm:pr-1.5 pb-2 sm:pb-0 border-b sm:border-b-0 text-center">
                 <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Extracted Age</span>
                 <span className="text-white font-extrabold text-sm">{user.age ? `${user.age} Yrs` : 'N/A'}</span>
               </div>
-              <div className="flex flex-col gap-1 border-r border-slate-800/60 px-1.5 text-center">
+              <div className="flex flex-col gap-1 sm:border-r border-slate-800/60 sm:px-1.5 pb-2 sm:pb-0 border-b sm:border-b-0 text-center">
                 <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Date of Birth</span>
                 <span className="text-white font-semibold font-mono text-[10px]">{formattedDate}</span>
               </div>
-              <div className="flex flex-col gap-1 pl-1.5 text-center">
+              <div className="flex flex-col gap-1 sm:pl-1.5 text-center">
                 <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Face Match Score</span>
                 <span className="text-emerald-400 font-extrabold text-sm">{user.faceMatchConfidence || 0}%</span>
               </div>

@@ -79,7 +79,7 @@ const Navbar = () => {
 
         {/* User profile summary & theme toggle */}
         <div className="flex items-center gap-3.5 pl-4 border-l border-slate-200 dark:border-slate-800">
-          <div className="text-right">
+          <div className="hidden sm:block text-right">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-250 leading-tight">{user.name || 'User'}</p>
             <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-extrabold uppercase tracking-wider">{user.role}</p>
           </div>
@@ -121,7 +121,7 @@ const AppContent = () => {
           {theme === 'dark' ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
         </button>
       )}
-      <main className="flex-1 flex items-center justify-center p-4 md:p-8">
+      <main className="flex-1 flex items-center justify-center p-4 md:p-8 pb-20 md:pb-8">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -159,6 +159,28 @@ const AppContent = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      {user && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-slate-200 dark:border-slate-800/80 z-50 flex justify-around py-2.5 backdrop-blur-md">
+          <Link to="/" className="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-600 dark:text-slate-350 hover:text-indigo-600 dark:hover:text-indigo-400">
+            <LayoutDashboard className="w-5 h-5" />
+            <span>Dashboard</span>
+          </Link>
+          {(user.role === 'club' || user.role === 'admin') && (
+            <Link to="/scanner" className="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-600 dark:text-slate-350 hover:text-indigo-600 dark:hover:text-indigo-400">
+              <Scan className="w-5 h-5" />
+              <span>Scanner</span>
+            </Link>
+          )}
+          {user.role === 'admin' && (
+            <Link to="/admin" className="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-600 dark:text-slate-350 hover:text-indigo-600 dark:hover:text-indigo-400">
+              <ShieldAlert className="w-5 h-5" />
+              <span>Admin</span>
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 };
