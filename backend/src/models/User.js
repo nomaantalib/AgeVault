@@ -36,6 +36,17 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  ocrName: {
+    type: String,
+    default: '',
+  },
+  ocrDob: {
+    type: Date,
+  },
+  ocrIdNumber: {
+    type: String,
+    default: '',
+  },
   selfieUrl: {
     type: String,
     default: '',

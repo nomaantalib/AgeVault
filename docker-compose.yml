@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  agevault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agevault:latest
+    container_name: agevault-app
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=${MONGO_URI:-mongodb://localhost:27017/agevault}
+      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key}
+      - USE_SIMULATED_OTP=${USE_SIMULATED_OTP:-true}
+      - RESEND_API_KEY_1=${RESEND_API_KEY_1}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-noreply@agevault.com}
+    restart: always

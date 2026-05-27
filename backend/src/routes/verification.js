@@ -43,6 +43,48 @@ const runPythonMLVerify = (idCardPath, selfiePath, idType) => {
   });
 };
 
+// @route   POST api/verify/extract
+// @desc    Extract details from ID Card using Tesseract OCR on backend
+// @access  Private
+router.post('/extract', protect, upload.single('idCard'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'ID Card image is required' });
+    }
+    const { idType } = req.body;
+    const idCardLocalPath = req.file.path;
+
+    const Tesseract = require('tesseract.js');
+    const { parseOcrText } = require('../utils/ocrParser');
+
+    console.log(`Running backend Tesseract OCR for type: ${idType} on ${idCardLocalPath}...`);
+    
+    const { data: { text } } = await Tesseract.recognize(
+      idCardLocalPath,
+      'eng'
+    );
+
+    // Clean up local file after OCR extraction
+    fs.unlink(idCardLocalPath, (err) => {
+      if (err && err.code !== 'ENOENT') {
+        console.warn('Temp file cleanup warning in /extract:', err.message);
+      }
+    });
+
+    const parsedData = parseOcrText(text, idType || 'aadhaar');
+    console.log('Backend OCR Extracted details:', parsedData);
+
+    res.json({
+      success: true,
+      data: parsedData,
+      rawText: text
+    });
+  } catch (error) {
+    console.error('Backend Tesseract OCR extraction error:', error);
+    res.status(500).json({ success: false, message: 'Failed to extract text from document.' });
+  }
+});
+
 // @route   POST api/verify/submit
 // @desc    Submit ID Card + Live Selfie for verification
 // @access  Private
@@ -181,6 +223,11 @@ router.post('/submit', protect, upload.fields([
     user.dob = new Date(dob);
     user.age = age;
     user.idNumber = idNumber || user.idNumber;
+    user.ocrName = ocrName || user.ocrName;
+    if (ocrDob) {
+      user.ocrDob = new Date(ocrDob);
+    }
+    user.ocrIdNumber = ocrIdNumber || user.ocrIdNumber;
     user.status = status;
     user.idCardUrl = idCardUrl;
     user.selfieUrl = selfieUrl;

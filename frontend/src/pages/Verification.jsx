@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as faceapi from '@vladmandic/face-api';
-import Tesseract from 'tesseract.js';
 import confetti from 'canvas-confetti';
-import { parseOcrText } from '../utils/ocrParser';
 import { 
   ShieldCheck, Upload, Camera, FileText, CheckCircle2, 
   User, Calendar, AlertTriangle, RefreshCw, ChevronRight, X
@@ -179,84 +177,30 @@ const Verification = () => {
     setWebcamActive(false);
   };
 
-  // High-accuracy OCR image pre-processing: Grayscale, Contrast Boosting & Adaptive Binarization Thresholding
-  const preprocessImageForOcr = (file) => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
-          
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imageData.data;
-          
-          // Apply high-contrast grayscale and binarization threshold filters
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i+1];
-            const b = data[i+2];
-            
-            // Calculate luminance (grayscale)
-            let gray = 0.299 * r + 0.587 * g + 0.114 * b;
-            
-            // Boost Contrast by 30% to sharpen text details
-            const contrast = 30;
-            const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
-            gray = factor * (gray - 128) + 128;
-            
-            // Apply binarization threshold: 
-            // values below 128 become black, values above become white.
-            // This isolates text characters cleanly from government ID backgrounds,
-            // removing complex watermarks, textures, or holographic stamps.
-            const finalColor = gray < 128 ? 0 : 255;
-            
-            data[i] = finalColor;
-            data[i+1] = finalColor;
-            data[i+2] = finalColor;
-          }
-          
-          ctx.putImageData(imageData, 0, 0);
-          canvas.toBlob((blob) => {
-            if (!blob) {
-              resolve(file); // Fallback to original file if blob fails
-              return;
-            }
-            const processedFile = new File([blob], 'processed_doc.jpg', { type: 'image/jpeg' });
-            resolve(processedFile);
-          }, 'image/jpeg', 0.95);
-        };
-        img.src = event.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // OCR Parser logic
+  // OCR Parser logic calling backend
   const runOCR = async (file) => {
     setOcrLoading(true);
     setError('');
     try {
-      console.log('Pre-processing document image for high-accuracy OCR...');
-      const processedFile = await preprocessImageForOcr(file);
+      console.log('Uploading document for server-side Tesseract OCR...');
+      const formData = new FormData();
+      formData.append('idCard', file);
+      formData.append('idType', idType);
 
-      // Use zero-config automatic Tesseract.recognize which handles CORS and CDNs robustly
-      const { data: { text } } = await Tesseract.recognize(
-        processedFile,
-        'eng',
-        {
-          logger: m => console.log('Tesseract OCR status:', m)
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/verify/extract`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-      console.log('OCR Extracted Text:', text);
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message || 'Server OCR failed');
+      }
 
-      // Extract details using the new parser
-      const { dob: dobFound, name: nameFound, idNumber: idNumberFound } = parseOcrText(text, idType);
+      const { dob: dobFound, name: nameFound, idNumber: idNumberFound } = data.data;
 
       if (dobFound) {
         setExtractedDob(dobFound);
@@ -279,7 +223,7 @@ const Verification = () => {
         setExtractedIdNumber('');
       }
     } catch (err) {
-      console.error('OCR Processing Error:', err);
+      console.error('Server OCR Processing Error:', err);
       setError('OCR extraction failed to read documents. You can still input details manually.');
     } finally {
       setOcrLoading(false);
