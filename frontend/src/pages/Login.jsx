@@ -85,8 +85,20 @@ const Login = () => {
   const initializeGoogleSignIn = () => {
     try {
       if (window.google) {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        const isDummy = !clientId || clientId.trim() === '' || clientId.includes('dummy') || clientId.includes('YOUR_GOOGLE_CLIENT_ID');
+        
+        if (isDummy) {
+          console.warn('Google Sign-In is disabled: VITE_GOOGLE_CLIENT_ID is not configured or is a placeholder.');
+          const btn = document.getElementById('google-signin-btn');
+          if (btn) btn.style.display = 'none';
+          const divider = document.getElementById('google-signin-divider');
+          if (divider) divider.style.display = 'none';
+          return;
+        }
+
         window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-client-id.apps.googleusercontent.com',
+          client_id: clientId,
           callback: handleGoogleCredentialResponse,
         });
         window.google.accounts.id.renderButton(
@@ -439,7 +451,7 @@ const Login = () => {
               </button>
 
               {/* Google Sign-in GIS container */}
-              <div className="relative my-4 flex items-center justify-center">
+              <div id="google-signin-divider" className="relative my-4 flex items-center justify-center">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
                 <span className="relative px-3 text-[9px] font-bold uppercase" style={{ color: 'var(--text-muted)', background: 'var(--glass-bg-glow)' }}>Or Google verification</span>
               </div>
