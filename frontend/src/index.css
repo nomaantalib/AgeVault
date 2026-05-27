@@ -315,8 +315,14 @@ html {
 
 /* ─────────────────────────── CURVY TEXT WRITING ─────────────────────────── */
 .font-cursive {
+  font-family: 'Satisfy', 'Pacifico', cursive !important;
+}
+
+/* Ensure the admin portal has absolutely zero cursive font styling */
+.admin-portal,
+.admin-portal * {
   font-family: 'Outfit', 'Inter', sans-serif !important;
-  letter-spacing: 0.04em;
+  letter-spacing: normal !important;
 }
 
 /* ─────────────────────────── ANIMATIONS ─────────────────────────── */

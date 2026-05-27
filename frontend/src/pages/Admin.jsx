@@ -629,7 +629,7 @@ const Admin = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl space-y-6">
+    <div className="w-full max-w-6xl space-y-6 admin-portal">
       
       {/* Title block */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-850 pb-5">
